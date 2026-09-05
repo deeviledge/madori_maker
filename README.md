@@ -32,20 +32,20 @@
 
 ## 公開する（GitHub Pages）
 
-`main` ブランチに push すると `.github/workflows/pages.yml` が自動でデプロイします。
-ただし **初回だけ、GitHubの画面で次の2つを設定** してください（APIやワークフローからは設定できません）。
+セットアップ済みです。**`main` ブランチに push すれば自動で公開されます**
+（`.github/workflows/pages.yml`）。
 
-1. **Settings → General → Default branch** を **`main`** に変更する
-   （GitHub Pages は既定でデフォルトブランチからのデプロイしか許可しないため）
-2. **Settings → Pages → Source** を **「GitHub Actions」** に変更する
+公開URL: **https://deeviledge.github.io/madori_maker/**
 
-設定後、**Actions → Deploy to GitHub Pages → Run workflow** で再実行すれば公開されます。
-公開URLは `https://<ユーザー名>.github.io/madori_maker/` です。
-サブディレクトリ配信でも動くよう、パスはすべて相対で書いてあります。
+設定内容（変更したいとき用のメモ）:
 
-> **非公開（private）リポジトリの場合**、GitHub Pages は GitHub Pro / Team / Enterprise が必要です。
-> 無料プランのままなら、リポジトリを public にするか、Netlify / Cloudflare Pages などに
-> このフォルダごとアップロードしても同じように動きます（ビルド不要の静的サイトです）。
+- Settings → General → Default branch = `main`
+- Settings → Pages → Source = **GitHub Actions**
+- リポジトリは public（GitHub Pages を無料プランで使うため）。
+  入力した土地・収支のデータは端末内（localStorage）にしか保存されないので、公開されるのはコードだけです。
+
+デプロイのたびに Service Worker のキャッシュ名へコミットSHAが刻印され、古いキャッシュは自動で破棄されます。
+利用者側には「新しいバージョンがあります」のバーが出ます。
 
 > PWA（ホーム画面追加・オフライン）は **HTTPS でのみ有効** です。
 > ファイルをダブルクリックして `file://` で開いた場合、アプリ自体は動きますが Service Worker は登録されません。
