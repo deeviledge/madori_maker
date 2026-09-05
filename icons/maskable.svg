@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="事業計画スタジオ">
+  <rect width="512" height="512" fill="#16232F"/>
+  <g transform="translate(256,256) scale(0.74) translate(-256,-256)">
+  <g stroke="#FBFCFD" stroke-width="26" fill="none" stroke-linecap="square">
+      <rect x="104" y="104" width="304" height="304"/>
+      <path d="M104 246 H296"/>
+      <path d="M296 246 V270"/>
+      <path d="M296 344 V408"/>
+    </g>
+    <rect x="117" y="117" width="166" height="116" fill="#0E7C86"/>
+    <g stroke="#12A0AC" stroke-width="16" fill="none" stroke-linecap="round">
+      <path d="M296 270 A74 74 0 0 1 370 344"/>
+      <path d="M296 270 V344"/>
+    </g>
+  </g>
+</svg>

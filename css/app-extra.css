@@ -1,0 +1,263 @@
+/* 事業計画スタジオ — v7以降の追加スタイル（上書き含むため app.css の後に読み込む） */
+/* ===== v7 additions ===== */
+.savedot{color:#9AA5AF;font-size:10px;align-self:center;padding:0 2px;transition:color .3s}
+.savedot.on{color:var(--ok)}
+.savedot.off{color:var(--ng)}
+#tabbar{overflow-x:auto;scrollbar-width:none}
+#tabbar::-webkit-scrollbar{display:none}
+#tabbar button{min-width:56px;flex:1 0 auto}
+.stepper{display:flex;align-items:stretch;gap:0}
+.stepper input{flex:1;min-width:0;border-radius:0;border-left:none;border-right:none;text-align:center}
+.stepper button{width:38px;min-height:38px;border:1px solid var(--line);background:var(--card);font-size:16px;font-weight:700;color:var(--ink);cursor:pointer;flex:0 0 auto}
+.stepper button:first-child{border-radius:8px 0 0 8px}
+.stepper button:last-child{border-radius:0 8px 8px 0}
+.stepper button:active{background:var(--accent);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.chips button{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+.chips button:active,.chips button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.refnote{font-size:11px;color:#54677A;background:#F2F5F8;border-radius:6px;padding:6px 8px;margin:4px 0 8px;line-height:1.55}
+.segrow{display:flex;gap:6px;margin-bottom:10px}
+.segrow button{flex:1;padding:9px;border:1.5px solid var(--line);background:var(--card);border-radius:9px;font-weight:700;font-size:13px;cursor:pointer}
+.segrow button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.loancard{border:1.5px solid var(--line);border-radius:11px;padding:10px;margin-bottom:10px;background:var(--card)}
+.loancard.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(14,124,134,.15)}
+.loancard .lc-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.loancard .lc-h b{flex:1;font-size:13.5px}
+.ltag{font-size:10px;padding:2px 7px;border-radius:9px;color:#fff;font-weight:700;flex:0 0 auto}
+.ltag.jutaku{background:#34506B}.ltag.apart{background:#0E7C86}.ltag.proper{background:#A67C3D}
+.lcmini{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-size:11.5px;color:#54677A}
+.lcmini b{color:var(--ink);font-variant-numeric:tabular-nums}
+.gantt{overflow-x:auto;border:1px solid var(--line);border-radius:9px;background:#fff}
+.gantt svg{display:block}
+.rrow td input{width:100%}
+.comp{overflow-x:auto}
+.comp table{border-collapse:collapse;font-size:11.5px;min-width:100%}
+.comp th,.comp td{border:1px solid var(--line);padding:5px 7px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.comp th:first-child,.comp td:first-child{text-align:left;position:sticky;left:0;background:var(--card);font-weight:600}
+.comp tr.hd th{background:#EEF2F6;text-align:center}
+.exlist label{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.exlist input{width:18px;height:18px;accent-color:var(--accent)}
+.walltbl{width:100%;border-collapse:collapse;font-size:11.5px;margin:4px 0}
+.walltbl th,.walltbl td{border:1px solid var(--line);padding:3px 4px;text-align:center}
+.walltbl select,.walltbl input{width:100%;min-height:30px;padding:2px;font-size:11.5px}
+@media print{body *{visibility:hidden}}
+
+/* ===== モードバー ===== */
+.modebar{display:flex;gap:3px;background:#EEF2F6;border-radius:9px;padding:3px}
+.modebar button{border:none;background:transparent;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:700;color:#54677A;cursor:pointer;white-space:nowrap}
+.modebar button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+@media(max-width:520px){.modebar button{padding:5px 7px;font-size:10.5px}.brand span{display:none}}
+/* CFツリー */
+.cftree{display:flex;flex-direction:column;gap:2px;margin:8px 0;font-size:11.5px}
+.cftree .bar{display:flex;height:38px;border-radius:5px;overflow:hidden}
+.cftree .seg{display:flex;flex-direction:column;justify-content:center;padding:2px 8px;color:#fff;min-width:0;overflow:hidden}
+.cftree .seg small{opacity:.85;font-size:9px}
+.cftree .seg b{font-size:12px;white-space:nowrap}
+/* 投資判断マトリクス */
+.jmx{border-collapse:collapse;width:100%;font-size:11px;margin:6px 0}
+.jmx th,.jmx td{border:1px solid var(--line);padding:5px;text-align:center}
+.jmx th{background:#EEF2F6}
+.jmx .hit{background:var(--accent);color:#fff;font-weight:700}
+.grade{font-size:34px;font-weight:800;text-align:center;line-height:1}
+.grade.g0{color:var(--ok)}.grade.g1{color:#C79A2E}.grade.g2{color:var(--ng)}
+.exitcard{border:1.5px solid var(--line);border-radius:11px;padding:10px;margin-bottom:10px}
+.irrrow{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-family:var(--mono);font-size:12px}
+.irrrow b{color:var(--ink)}
+
+
+/* ============ v7.1 視認性・UI改善パッケージ ============ */
+/* カード: 余白と見出しを整理 */
+.card{padding:13px 14px;margin-bottom:11px}
+.card h3{font-size:11px;letter-spacing:.4px;margin:0 0 11px}
+.scrollview{padding:12px 12px calc(18px + var(--sab))}
+/* フィールドのラベルと入力の詰まり緩和 */
+.field{margin-bottom:9px}
+.field label{font-size:11px;margin-bottom:3px;display:block;line-height:1.35}
+select,input[type=number],input[type=text]{font-size:13.5px;min-height:40px;padding:8px 10px}
+/* ボタン: 文字はみ出し対策（省略せず折返し許可＋最小高さ確保） */
+button.btn{font-size:12px;padding:10px 12px;min-height:40px;line-height:1.3;white-space:normal;word-break:auto-phrase;height:auto}
+.miniact{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.miniact .btn{flex:1 1 auto;min-width:calc(50% - 4px)}
+/* セグメント（個人/法人など）の文字はみ出し対策 */
+.segrow button{font-size:12px;padding:9px 6px;line-height:1.25;white-space:normal;height:auto;min-height:40px}
+/* バッジ: 数値を読みやすく */
+.badges{gap:7px;margin-bottom:11px}
+.badge{padding:9px 11px;border-radius:11px}
+.badge .bk{font-size:9.5px;line-height:1.3}
+.badge .bv{font-size:15.5px}
+/* 集計グリッド */
+.grid2{font-size:11.5px;gap:5px 8px}
+.grid3{font-size:11px}
+.big{margin-top:9px}
+.big .k{font-size:11.5px}.big .v{font-size:17px}
+/* refnote/hint: 小さめで詰めて可読 */
+.refnote{font-size:10.5px;line-height:1.5;padding:8px 9px}
+.hint{font-size:11px;line-height:1.5}
+.subttl{font-size:10.5px;margin:10px 0 5px}
+/* テーブル全般（コスト・面積・築年など）: フォント最適化 */
+.cost{font-size:11.5px}
+.cost th{font-size:10px;padding:6px 5px}
+.cost td{padding:5px 6px}
+.cost input{font-size:12px;min-height:34px;padding:4px 6px}
+/* CFテーブル: 横スクロール明示 */
+.cftable{position:relative}
+.cftable::after{content:'→ スワイプ';position:absolute;top:5px;right:8px;font-size:8.5px;color:var(--ink-soft);font-family:var(--jp);opacity:.6;pointer-events:none}
+.cftable table{font-size:10px}
+.cftable th{font-size:8.5px;padding:5px 6px}
+.cftable td{padding:4px 6px}
+/* レントロール: 家賃欄が横長すぎる問題を修正（テーブルを固定幅グリッドに） */
+.rentroll{overflow-x:auto}
+.rentroll table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed;min-width:0}
+.rentroll th{font-size:9.5px;color:var(--ink-soft);font-family:var(--jp);padding:5px 4px;text-align:center;background:#F4F7F9;border-bottom:1px solid var(--line-soft)}
+.rentroll td{padding:4px 4px;text-align:center;border-bottom:1px solid #F1F5F8;vertical-align:middle}
+.rentroll td input{width:100%;min-height:34px;font-size:12px;text-align:right;padding:3px 5px}
+.rentroll col.c-floor{width:13%}.rentroll col.c-name{width:22%}.rentroll col.c-area{width:15%}
+.rentroll col.c-rent{width:24%}.rentroll col.c-unit{width:16%}.rentroll col.c-occ{width:10%}
+.rentroll td.tl{text-align:left;font-size:11px}
+/* チップ */
+.chips button{font-size:11px;padding:5px 9px}
+/* 比較テーブル */
+.comp table{font-size:11px}
+.comp th,.comp td{padding:5px 6px}
+/* インスペクタの壁テーブル */
+.walltbl{font-size:10.5px}
+.walltbl select,.walltbl input{font-size:10.5px;min-height:32px}
+/* ステッパー：入力とボタンのバランス */
+.stepper button{width:40px;min-height:40px;font-size:17px}
+.stepper input{font-size:13.5px}
+/* モードバー：文字を少し詰めてはみ出し防止 */
+.modebar button{font-size:11px;padding:6px 8px}
+/* セクション見出し（大タイトル）*/
+.viewtitle{font-size:13px;font-weight:800;color:var(--ink);margin:2px 0 10px;padding-bottom:8px;border-bottom:2px solid var(--accent);letter-spacing:.3px;font-family:var(--jp)}
+.viewtitle small{font-weight:500;color:var(--ink-soft);font-size:10.5px;margin-left:6px}
+@media(min-width:760px){
+  .badges{grid-template-columns:repeat(4,1fr)}
+  select,input[type=number],input[type=text]{font-size:14px}
+}
+
+@media (prefers-reduced-motion:reduce){.bsheet,.backdrop{transition:none}}
+
+/* ============ v9 追加：全体を少し小さめ＋投資分析UI ============ */
+/* 全体的にフォントを1px前後小さく（情報密度アップ） */
+select,input[type=number],input[type=text]{font-size:12.5px;min-height:37px;padding:7px 9px}
+.viewtitle{font-size:12.5px}.viewtitle small{font-size:10px}
+.card h3{font-size:10.5px}
+.badge .bv{font-size:14px}.badge .bk{font-size:9px}
+.big .v{font-size:15.5px}.big .k{font-size:10.5px}
+.grid2{font-size:11px}.grid3{font-size:10.5px}
+.readout .v{font-size:12px}.readout .k{font-size:10.5px}
+.cost{font-size:11px}.cost th{font-size:9.5px}
+.refnote{font-size:10px}.hint{font-size:10px}
+.lcmini{font-size:11px}
+.comp table{font-size:10.5px}.comp th,.comp td{padding:4px 6px}
+.jmx{font-size:10.5px}.jmx th,.jmx td{padding:4px}
+.irrrow{font-size:11px}
+button.btn{font-size:11.5px;min-height:38px}
+.subttl{font-size:10px}
+.stepper input{font-size:12.5px}
+/* ステッパー：数値が見えるよう±ボタンを小さめに（特に3列時） */
+.stepper button{width:34px;min-height:38px;font-size:16px}
+.stepper input{min-width:0;padding-left:3px;padding-right:3px;text-align:center}
+.row3 .stepper button{width:28px;font-size:15px}
+.row3 .stepper input{font-size:12px}
+.row3 .field label{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---- ガント：タスク名を左に固定（横スクロール対応） ---- */
+.gantt2{display:flex;border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;position:relative}
+.g2-names{flex:0 0 auto;width:120px;border-right:1px solid var(--line);background:#fff;position:relative;z-index:2;box-shadow:2px 0 4px rgba(22,35,47,.05)}
+.g2-head{height:32px;display:flex;align-items:center;padding:0 8px;font-size:9px;font-weight:700;color:var(--ink-soft);background:#F4F7F9;border-bottom:1px solid var(--line-soft)}
+.g2-name{height:34px;display:flex;align-items:center;padding:0 7px;font-size:9.5px;border-bottom:1px solid #F1F5F8;gap:5px}
+.g2-name .cdot{width:7px;height:7px;border-radius:2px;flex:0 0 auto}
+.g2-name .nm{line-height:1.12;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.g2-name.done{color:#9AA5AF;text-decoration:line-through}
+.g2-scroll{flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.g2-scroll svg{display:block}
+.g2-hint{font-size:9px;color:var(--ink-soft);opacity:.7;text-align:right;margin:4px 2px 0}
+
+/* ---- 複数Cap売却試算：カード型で視認性UP ---- */
+.capsim{display:flex;flex-direction:column;gap:7px;margin-top:4px}
+.caprow{border:1px solid var(--line-soft);border-radius:10px;padding:9px 11px;background:#fff}
+.caprow.base{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent) inset}
+.caprow .caphd{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.caprow .capv{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--ink)}
+.caprow .captag{font-size:9px;font-weight:700;color:#fff;background:var(--accent);border-radius:8px;padding:1px 7px}
+.caprow .capprice{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+.caprow .capprice b{color:var(--ink);font-size:13px}
+.capgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-family:var(--mono);font-size:10.5px;margin-bottom:7px}
+.capgrid .k{color:var(--ink-soft);font-family:var(--jp)}
+.capgrid .v{text-align:right}
+.capcf{display:flex;align-items:center;gap:9px}
+.capcf .lb{font-family:var(--jp);font-size:10px;color:var(--ink-soft);flex:0 0 auto}
+.capbar{position:relative;flex:1;height:16px;border-radius:5px;background:#EEF2F6;overflow:hidden}
+.capbar .z{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#B9C4CF}
+.capbar .fill{position:absolute;top:2px;bottom:2px;border-radius:4px}
+.capbar .fill.pos{left:50%;background:var(--ok)}
+.capbar .fill.neg{right:50%;background:var(--ng)}
+.capcf .amt{font-family:var(--mono);font-weight:700;font-size:13px;flex:0 0 auto;min-width:78px;text-align:right}
+
+/* ---- 個人／法人 税負担比較 ---- */
+.enttbl{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+.enttbl th,.enttbl td{border:1px solid var(--line-soft);padding:6px 8px;text-align:right;font-family:var(--mono)}
+.enttbl th{background:#EEF2F6;font-family:var(--jp);font-size:9.5px;color:var(--ink-soft);font-weight:700}
+.enttbl td:first-child,.enttbl th:first-child{text-align:left;font-family:var(--jp)}
+.enttbl .win{background:var(--ok-bg);font-weight:700}
+.enttbl tr.hd th{text-align:center}
+
+/* ---- 計画：タスク編集カード ---- */
+.taskedit{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.tecard{border:1px solid var(--line-soft);border-radius:10px;padding:9px 10px;background:#fff}
+.te-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.te-top input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:0 0 auto}
+.te-name{flex:1;min-width:0;font-family:var(--jp);font-size:13px;font-weight:600}
+.te-del{flex:0 0 auto;min-height:34px;padding:4px 12px}
+.te-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:7px}
+.te-f{display:flex;flex-direction:column;gap:2px}
+.te-f label{font-size:9px;color:var(--ink-soft);font-weight:700;font-family:var(--jp)}
+.te-f select,.te-f input{width:100%;min-height:36px;font-size:12px}
+.te-f select{font-family:var(--jp);padding:6px 6px}
+.te-memo{width:100%;min-height:36px;font-family:var(--jp)}
+@media(max-width:420px){.te-grid{grid-template-columns:1fr 1fr}}
+
+/* ---- CFウォーターフォール（視認性重視） ---- */
+.cfwf{display:flex;flex-direction:column;gap:5px;margin:8px 0 4px}
+.cfwf .r{display:grid;grid-template-columns:96px 1fr 76px;gap:8px;align-items:center}
+.cfwf .r .lb{font-family:var(--jp);font-size:11px;color:var(--ink)}
+.cfwf .r.sub .lb{color:var(--ink-soft);font-size:10.5px;padding-left:8px}
+.cfwf .r .track{height:18px;background:#F1F5F8;border-radius:5px;overflow:hidden;position:relative}
+.cfwf .r .fill{position:absolute;top:0;bottom:0;left:0;border-radius:5px}
+.cfwf .r .amt{font-family:var(--mono);font-weight:700;font-size:12px;text-align:right}
+.cfwf .r.tot{padding-top:3px;border-top:1px dashed var(--line)}
+.cfwf .r.tot .lb{font-weight:700}
+.cfwf .r.tot .amt{font-size:13px}
+.cfwf .amt.pos{color:var(--ok)}.cfwf .amt.neg{color:var(--ng)}
+
+/* ---- 投資判断：任意合格ライン ---- */
+.judgeset{background:#F4F7F9;border:1px solid var(--line-soft);border-radius:10px;padding:10px 11px;margin:6px 0}
+.judgeset .jrow{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:11px;margin:3px 0}
+.judgeset .jrow b{font-family:var(--mono)}
+.judgeref{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}
+.judgeref th,.judgeref td{border:1px solid var(--line-soft);padding:4px 5px;text-align:center}
+.judgeref th{background:#EEF2F6;font-family:var(--jp);color:var(--ink-soft);font-weight:700}
+.judgeref td:first-child,.judgeref th:first-child{text-align:left;font-family:var(--jp)}
+.chip-yes{color:var(--ok);font-weight:700}.chip-no{color:var(--ng);font-weight:700}
+
+/* ---- 情報カード（税・ストレス解説） ---- */
+.infocard{background:#F7FAFB;border:1px solid #D6E4E5;border-radius:12px;padding:12px 13px;margin-bottom:11px}
+.infocard h4{margin:0 0 7px;font-size:12px;color:var(--accent);font-family:var(--jp);display:flex;align-items:center;gap:6px}
+.infocard p{margin:0 0 7px;font-size:11px;line-height:1.65;color:var(--ink);font-family:var(--jp)}
+.infocard p:last-child{margin-bottom:0}
+.infocard .step{display:flex;gap:8px;margin:5px 0;font-size:11px;font-family:var(--jp);line-height:1.5}
+.infocard .step .n{flex:0 0 auto;min-width:20px;height:20px;padding:0 6px;border-radius:11px;background:var(--accent);color:#fff;font-family:var(--jp);font-size:9.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;white-space:nowrap;line-height:1}
+.infocard .hl{background:#FFF6DC;border-radius:3px;padding:0 3px;font-weight:700}
+
+/* ---- フロア管理シート ---- */
+.floorlist{display:flex;flex-direction:column;gap:7px;margin-bottom:4px}
+.floorrow{display:flex;align-items:center;gap:8px;border:1px solid var(--line-soft);border-radius:10px;padding:8px 10px;background:#fff}
+.floorrow.active{border-color:var(--accent);background:var(--accent-soft)}
+.floorrow .fi{flex:1;min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.floorrow .fi b{font-size:14px}
+.floorrow .fi small{font-size:10px;color:var(--ink-soft)}
+.floorrow .fa2{display:flex;gap:5px;flex:0 0 auto}
+.floorrow .fa2 .btn{padding:7px 10px;min-height:34px;font-size:13px;min-width:auto}
+.flooradd{display:flex;flex-direction:column;gap:7px}
+.flooradd .btn{text-align:left}

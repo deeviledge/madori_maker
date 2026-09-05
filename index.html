@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>事業計画スタジオ v43</title>
+
+<!-- ===== PWA ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#16232F">
+<meta name="description" content="賃貸併用住宅の間取り作成から、コスト・融資・収支・出口までを1画面で検討する事業計画スタジオ。">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="事業計画スタジオ">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/app-extra.css">
+<link rel="stylesheet" href="css/pwa.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="hleft"><div class="brand"><b>事業計画スタジオ</b><span>MADORI STUDIO</span></div></div>
+    <div class="hright">
+      <button class="menuBtn" id="undoBtn" title="元に戻す">↩</button>
+      <button class="menuBtn" id="redoBtn" title="やり直す">↪</button>
+      <span class="savedot" id="saveDot" title="自動保存">●</span>
+      <button class="menuBtn" id="menuBtn" title="メニュー">☰</button>
+    </div>
+  </header>
+  <div class="subhead">
+    <div class="modebar" id="modebar">
+      <button data-mode="invest" title="収益物件（自宅なし）">🏢 投資</button>
+      <button data-mode="hybrid" title="自宅＋賃貸">🏠 併用</button>
+      <button data-mode="home" title="自宅のみ">🛏 自宅</button>
+    </div>
+    <select id="scenSel" title="シナリオ切替"></select>
+  </div>
+  <nav class="tabbar" id="tabbar">
+    <button data-view="plan" class="active"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 12h9M12 12v9M12 3v5"/></svg>間取り</button>
+    <button data-view="building"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18"/><path d="M5 9h14M5 15h14M12 3v18"/></svg>建物</button>
+    <button data-view="tochi"><svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>土地</button>
+    <button data-view="cost"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V9l6-5 6 5v11"/><path d="M10 20v-5h4v5"/></svg>コスト</button>
+    <button data-view="loan"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 11h18M8 4h8l1 3H7z"/></svg>融資</button>
+    <button data-view="sim"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20v-6l4-4 4 3 6-7"/><path d="M19 6v4h-4"/></svg>収支</button>
+    <button data-view="sched"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M6 13h6M6 17h9"/></svg>計画</button>
+    <button data-view="exit" data-modes="invest hybrid"><svg viewBox="0 0 24 24"><path d="M3 21h18M6 21V8l6-4 6 4v13M10 21v-6h4v6"/><path d="M17 4l3 3-3 3"/></svg>出口</button>
+    <button data-view="comp"><svg viewBox="0 0 24 24"><path d="M7 3v18M17 3v18M3 8h8M13 12h8M3 16h8"/></svg>比較</button>
+  </nav>
+  <main>
+    <!-- ===== 間取り ===== -->
+    <section class="view active" id="view-plan">
+      <div class="plantop">
+        <span class="floorlbl">フロア</span>
+        <div class="ftabs" id="floortabs"></div>
+        <button class="floorbtn" id="addFloor" title="フロアの切替・追加・複製・削除">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16.5l9 5 9-5"/></svg>追加・編集
+        </button>
+        <span style="flex:1"></span>
+        <button class="iconbtn" id="zoomOut">−</button><span class="zoomval" id="zoomVal">100%</span><button class="iconbtn" id="zoomIn">＋</button>
+        <button class="iconbtn" id="zoomFit" title="全体表示">⤢</button>
+        <button class="iconbtn lockbtn editing" id="lockBtn" title="編集モード / 閲覧モードの切替">✎ 編集中</button>
+        <button class="iconbtn" id="dispBtn" title="表示・設定">⚙</button>
+      </div>
+      <div class="planbody">
+        <div class="stage" id="stage">
+          <div class="canvaswrap" id="canvaswrap"><svg class="sheet" id="sheet" xmlns="http://www.w3.org/2000/svg"></svg></div>
+          <div class="nudge" id="nudgePad">
+            <button class="ndhead" id="ndMode" title="位置微調 ⇄ サイズ変更">✥ 位置を微調整</button>
+            <div class="ndgrid">
+            <button class="cnr" id="ndPos" title="パッドの位置を変える">✥</button><button data-nd="0,-1" title="上へ">↑</button><button class="cnr" id="ndUp" title="移動量を大きく">＋</button>
+            <button data-nd="-1,0" title="左へ">←</button><button class="step" id="ndStep" title="移動量を切替">50mm</button><button data-nd="1,0" title="右へ">→</button>
+            <button class="cnr" id="ndDn" title="移動量を小さく">－</button><button data-nd="0,1" title="下へ">↓</button><button class="cnr" id="ndClose" title="閉じる（移動モードへ）">✕</button>
+            </div>
+          </div>
+          <div class="viewbadge" id="viewBadge">👁 閲覧モード（図面は動かせません）</div>
+        </div>
+        <aside class="deskside">
+          <div class="card deskadd"><button class="btn pri" id="deskAddBtn">＋ 部屋・設備を追加</button><div class="hint" style="margin:7px 0 0">部屋（居室・水回り）や設備（ドア・窓・階段・家具）を配置します。</div></div>
+          <div class="card"><h3>選択オブジェクト</h3>
+            <div class="empty" id="inspectorEmptyD">タップ / クリックで選択 → そのままドラッグで<b>移動</b>。サイズを変えるときは選択後に「⤢ 変形」を押すとハンドルが出ます（変形中は移動しません）。<br>R=回転 / F=反転 / Del=削除 / ⌘D=複製</div>
+            <div id="inspD"></div>
+          </div>
+          <div class="card"><h3>この階の内訳</h3><div id="floorSummaryD"></div></div>
+        </aside>
+      </div>
+      <button class="fab" id="fabAdd" title="追加">＋</button>
+      <div class="selbar pos-left" id="selbar">
+        <button id="sbPos" title="バーの位置を変える">⇄</button>
+        <span class="nm" id="selName"></span>
+        <button id="sbMode" title="移動 / 変形 / 微調 を切替">✋ 移動</button>
+        <button id="sbMerge" title="もう一つの部屋と合体">⊕ 合体</button>
+        <button id="sbRot">回転</button><button id="sbFlip">反転</button><button id="sbDup">複製</button>
+        <button class="pri" id="sbEdit">詳細</button><button class="dngr" id="sbDel">削除</button>
+      </div>
+    </section>
+    <!-- ===== 建物 ===== -->
+    <section class="view" id="view-building"><div class="scrollview"><div class="inner" id="buildingView"></div></div></section>
+    <!-- ===== 資金 ===== -->
+    <section class="view" id="view-tochi"><div class="scrollview"><div class="inner" id="tochiView"></div></div></section>
+    <section class="view" id="view-cost"><div class="scrollview"><div class="inner" id="costView"></div></div></section>
+    <!-- ===== 融資 ===== -->
+    <section class="view" id="view-loan"><div class="scrollview"><div class="inner" id="loanView"></div></div></section>
+    <!-- ===== 収支 ===== -->
+    <section class="view" id="view-sim"><div class="scrollview"><div class="inner" id="simView"></div></div></section>
+      <!-- ===== 計画 ===== -->
+    <section class="view" id="view-sched"><div class="scrollview"><div class="inner" id="schedView"></div></div></section>
+    <!-- ===== 出口 ===== -->
+    <section class="view" id="view-exit"><div class="scrollview"><div class="inner" id="exitView"></div></div></section>
+    <!-- ===== 比較 ===== -->
+    <section class="view" id="view-comp"><div class="scrollview"><div class="inner" id="compView"></div></div></section>
+  </main>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+
+<div class="bsheet" id="addSheet"><div class="bh"><b>間取りに追加</b><button class="close" data-close>✕</button></div><div class="bc" id="addSheetBody"></div></div>
+<div class="bsheet" id="inspSheet"><div class="bh"><b>オブジェクト詳細</b><button class="close" data-close>✕</button></div><div class="bc" id="inspM"></div></div>
+<div class="bsheet" id="varSheet"><div class="bh"><b>バリエーション（型・サイズ）</b><button class="close" data-close>✕</button></div><div class="bc" id="varSheetBody"></div></div>
+<div class="bsheet" id="dispSheet"><div class="bh"><b>表示設定</b><button class="close" data-close>✕</button></div><div class="bc" id="dispSheetBody"></div></div>
+<div class="bsheet" id="exportSheet"><div class="bh"><b>エクスポート</b><button class="close" data-close>✕</button></div><div class="bc" id="exportSheetBody"></div></div>
+<div class="bsheet" id="menuSheet"><div class="bh"><b>メニュー</b><button class="close" data-close>✕</button></div><div class="bc" id="menuSheetBody"></div></div>
+<div class="bsheet" id="floorSheet"><div class="bh"><b>フロア（切替・追加・複製・削除）</b><button class="close" data-close>✕</button></div><div class="bc" id="floorSheetBody"></div></div>
+
+<input type="file" id="fileInput" accept="application/json" style="display:none">
+<div class="dimtip" id="dimtip"></div>
+
+<!-- 更新通知バー（Service Workerが新バージョンを検知したときだけ表示） -->
+<div class="pwa-update" id="pwaUpdate" role="status" aria-live="polite">
+  <span>新しいバージョンがあります</span>
+  <button type="button" id="pwaReload">更新する</button>
+  <button type="button" id="pwaDismiss" class="ghost" aria-label="閉じる">×</button>
+</div>
+
+<script src="js/01-model.js"></script>
+<script src="js/02-geometry.js"></script>
+<script src="js/03-canvas.js"></script>
+<script src="js/04-interact.js"></script>
+<script src="js/05-geom-ops.js"></script>
+<script src="js/06-finance.js"></script>
+<script src="js/07-ui-parts.js"></script>
+<script src="js/08-inspector.js"></script>
+<script src="js/09-sheets.js"></script>
+<script src="js/10-floors-io.js"></script>
+<script src="js/11-state.js"></script>
+<script src="js/12-view-cost.js"></script>
+<script src="js/13-view-loan.js"></script>
+<script src="js/14-view-sim.js"></script>
+<script src="js/15-view-sched.js"></script>
+<script src="js/16-view-comp.js"></script>
+<script src="js/17-export.js"></script>
+<script src="js/18-cards.js"></script>
+<script src="js/19-view-tochi.js"></script>
+<script src="js/99-boot.js"></script>
+<script src="pwa.js"></script>
+</body>
+</html>
