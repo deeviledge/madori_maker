@@ -32,10 +32,10 @@ jobs:
       - name: Stamp version
         run: node tools/stamp-version.mjs "${GITHUB_SHA::12}"
 
-      # enablement: true … Pages未設定でも、この実行時に「GitHub Actionsで配信」を自動で有効化する
+      # ここは Settings → Pages → Source が「GitHub Actions」になっている必要がある。
+      # ワークフローのトークンではPages自体を有効化できないため（enablement: true は
+      # "Resource not accessible by integration" で失敗する）、初回だけ画面で設定する。
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

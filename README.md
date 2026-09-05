@@ -32,16 +32,22 @@
 
 ## 公開する（GitHub Pages）
 
-このリポジトリは GitHub Pages でそのまま公開できます。
+`main` ブランチに push すると `.github/workflows/pages.yml` が自動でデプロイします。
+ただし **初回だけ、GitHubの画面で次の2つを設定** してください（APIやワークフローからは設定できません）。
 
-1. GitHub のリポジトリ → **Settings → Pages** を開く
-2. **Source** を **GitHub Actions** に設定
-3. `main` ブランチに push する（`.github/workflows/pages.yml` が自動でデプロイします）
+1. **Settings → General → Default branch** を **`main`** に変更する
+   （GitHub Pages は既定でデフォルトブランチからのデプロイしか許可しないため）
+2. **Settings → Pages → Source** を **「GitHub Actions」** に変更する
 
-公開 URL は `https://<ユーザー名>.github.io/madori_maker/` になります。
+設定後、**Actions → Deploy to GitHub Pages → Run workflow** で再実行すれば公開されます。
+公開URLは `https://<ユーザー名>.github.io/madori_maker/` です。
 サブディレクトリ配信でも動くよう、パスはすべて相対で書いてあります。
 
-> PWA（ホーム画面追加・オフライン）は **HTTPS でのみ有効** です。GitHub Pages は HTTPS なので問題ありません。
+> **非公開（private）リポジトリの場合**、GitHub Pages は GitHub Pro / Team / Enterprise が必要です。
+> 無料プランのままなら、リポジトリを public にするか、Netlify / Cloudflare Pages などに
+> このフォルダごとアップロードしても同じように動きます（ビルド不要の静的サイトです）。
+
+> PWA（ホーム画面追加・オフライン）は **HTTPS でのみ有効** です。
 > ファイルをダブルクリックして `file://` で開いた場合、アプリ自体は動きますが Service Worker は登録されません。
 
 ---
