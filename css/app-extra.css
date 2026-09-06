@@ -264,3 +264,7 @@ button.btn{font-size:11.5px;min-height:38px}
 
 /* ---- 借入形態のセグメント見出し ---- */
 .fieldlbl{font-size:10.5px;color:var(--ink-soft);font-weight:600;font-family:var(--jp);margin-bottom:4px}
+
+/* ---- 設計図面モード：線幅の階層（断面線＝太、姿線＝細、寸法・補助線＝極細） ---- */
+svg.sheet.dm{background:#FFFFFF}
+svg.sheet.dm .glyphs *{stroke-width:.9}

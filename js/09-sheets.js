@@ -54,9 +54,10 @@ function addElem(kind){const f=F();const[cx,cy]=viewCenter();const d=ELEM[kind];
 function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st=state.settings,f=F();
   box.appendChild(el('div','palcat','表示'));
   const g=el('div','flags');
-  [['snap','スナップ'],['showGrid','目盛'],['showLabels','名称'],['showDim','寸法線'],['showWall','壁'],['drawMode','図面風'],['vtx','頂点編集']].forEach(([k,lb])=>{
+  [['snap','スナップ'],['showGrid','目盛'],['showLabels','名称'],['showDim','寸法線'],['showWall','壁'],['drawMode','設計図面'],['vtx','頂点編集']].forEach(([k,lb])=>{
     const l=document.createElement('label');const c=document.createElement('input');c.type='checkbox';c.checked=!!view[k];c.onchange=()=>{view[k]=c.checked?1:0;render();};l.appendChild(c);l.appendChild(document.createTextNode(lb));g.appendChild(l);});
   box.appendChild(g);
+  box.appendChild(el('div','hint','<b>設計図面</b>をONにすると、通り芯（X1・Y1…）と符号・外側2段の寸法線（総寸法／通り芯間）・方位マーク・表題欄が付き、壁はソリッド塗り＋隅に柱、部屋名は名称＋畳数の書式になります。見た目だけで面積・法規・収支の数値は変わりません。柱は作図上の表現で、構造計算に基づくものではありません。'));
   box.appendChild(fSelect('グリッド',[['0.1','100 mm'],['0.2','200 mm'],['0.25','250 mm'],['0.455','455 mm (半々間)'],['0.5','500 mm'],['0.91','910 mm (半間)']],String(view.grid),v=>{view.grid=+v;render();}));
   box.appendChild(fSelect('パッドの大きさ',[['S','小'],['M','中'],['L','大']],view.padSize||'S',v=>{view.padSize=v;applyNudgeUI();}));
   box.appendChild(fSelect('微調整パッドの位置',NUDGE_POS.map(([v,l])=>[v,l]),view.nudgePos||'br',v=>{view.nudgePos=v;view.nudgeXY=null;applyNudgeUI();}));

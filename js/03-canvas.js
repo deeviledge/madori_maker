@@ -8,8 +8,16 @@ function renderSheet(){drawFloorId=state.activeFloorId;
   sheet.innerHTML='';
   f.rooms.forEach(r=>{const b=bbox(r.poly);mr=Math.max(mr,b.x+b.w);mb=Math.max(mb,b.y+b.h);});
   f.elems.forEach(e=>{mr=Math.max(mr,e.x+e.w);mb=Math.max(mb,e.y+e.h);});
-  const M=1.3,off=M*.7*S,Wpx=(mr+M)*S,Hpx=(mb+M)*S;
+  const DM=!!view.drawMode;                       /* 設計図面モード */
+  const AX=DM?gridAxes(f):null;                   /* 通り芯 */
+  /* 図面モードの外側の並び（建物からの距離・m）: 通り芯間 → 総寸法 → 通り芯符号 */
+  const DIM_CHAIN=.75,DIM_TOTAL=1.5,AXIS_TAG=2.2;
+  const M=DM?4.3:1.3;
+  const off=DM?2.7*S:M*.7*S;
+  const titleH=DM?52:0;                           /* 表題欄の帯（px） */
+  const Wpx=(mr+M)*S,Hpx=(mb+M)*S+titleH;
   sheet.setAttribute('width',Wpx);sheet.setAttribute('height',Hpx);
+  sheet.classList.toggle('dm',DM);
   {const defs=E('defs',{});
    const hp=(id,bg,ln,sw)=>{const pt=E('pattern',{id,width:6,height:6,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'});
      pt.appendChild(E('rect',{x:0,y:0,width:6,height:6,fill:bg}));
@@ -24,6 +32,7 @@ function renderSheet(){drawFloorId=state.activeFloorId;
     for(let x=0;x<=mr+1e-6;x+=.91)gg.appendChild(E('line',{x1:x*S,y1:0,x2:x*S,y2:mb*S,stroke:'var(--grid-major)','stroke-width':1}));
     for(let y=0;y<=mb+1e-6;y+=.91)gg.appendChild(E('line',{x1:0,y1:y*S,x2:mr*S,y2:y*S,stroke:'var(--grid-major)','stroke-width':1}));
     root.appendChild(gg);}
+  if(DM){const ag=E('g',{'pointer-events':'none'});drawAxes(ag,AX,f,S,mr,mb,AXIS_TAG);root.appendChild(ag);}
   const rl=E('g',{}),ol=E('g',{'pointer-events':'none'}),ll=E('g',{'pointer-events':'none'});
   const PT=pl=>pl.map(([x,y])=>`${x*S},${y*S}`).join(' ');
   f.rooms.forEach(r=>{const col=SPACE[r.type]?.color||'#34506B';const g=E('g',{class:'obj'});g.dataset.type='room';g.dataset.id=r.id;
@@ -39,10 +48,17 @@ function renderSheet(){drawFloorId=state.activeFloorId;
     /* ラベルは壁レイヤーより上に描画（壁を実厚み化しても隠れない） */
     if(view.showLabels){const [cx,cy]=centroid(ip),b=bbox(ip),a=roomAreas(r,f);
       const big=b.w*S>62&&b.h*S>40,med=b.w*S>52&&b.h*S>24;
-      ll.appendChild(txt(cx*S,cy*S-(big?12:0),r.name,{weight:700,size:Math.min(13,Math.max(9,b.w*S/6))}));
-      if(big){ll.appendChild(txt(cx*S,cy*S+3,`壁芯 ${f1(a.gross)}㎡ / ${f1(a.gross/TATAMI)}畳`,{mono:true,size:9.5,fill:'#54677A'}));
-        ll.appendChild(txt(cx*S,cy*S+15,`内法 ${f1(a.net)}㎡ / ${f1(a.net/TATAMI)}畳`,{mono:true,size:9,fill:'#8A9CAB'}));}
-      else if(med){ll.appendChild(txt(cx*S,cy*S+11,`${f1(a.gross)}㎡`,{mono:true,size:9,fill:'#54677A'}));}}});
+      const fs=Math.min(13,Math.max(9,b.w*S/6));
+      if(DM){
+        /* 図面モード：名称＋畳数の2行だけ（実際の間取り図の書式に寄せる） */
+        const room2=med&&b.h*S>42;   /* 2行入る高さがあるときだけ畳数を添える */
+        ll.appendChild(txt(cx*S,cy*S-(room2?6:0),r.name,{weight:700,size:fs}));
+        if(room2)ll.appendChild(txt(cx*S,cy*S+9,`${f1(a.net/TATAMI)}畳`,{mono:true,size:9.5,fill:'#54677A'}));
+      }else{
+        ll.appendChild(txt(cx*S,cy*S-(big?12:0),r.name,{weight:700,size:fs}));
+        if(big){ll.appendChild(txt(cx*S,cy*S+3,`壁芯 ${f1(a.gross)}㎡ / ${f1(a.gross/TATAMI)}畳`,{mono:true,size:9.5,fill:'#54677A'}));
+          ll.appendChild(txt(cx*S,cy*S+15,`内法 ${f1(a.net)}㎡ / ${f1(a.net/TATAMI)}畳`,{mono:true,size:9,fill:'#8A9CAB'}));}
+        else if(med){ll.appendChild(txt(cx*S,cy*S+11,`${f1(a.gross)}㎡`,{mono:true,size:9,fill:'#54677A'}));}}}});
   root.appendChild(rl);
   if(view.showWall){const MAG=view.wallMag||1,wl=E('g',{}),outW=Math.max(2,state.settings.wallOut*MAG*S);
     /* 壁はハッチ帯（建築図面風）で塗り、両面の種線を上レイヤーで引く */
@@ -52,16 +68,21 @@ function renderSheet(){drawFloorId=state.activeFloorId;
       const t=cfg.t!=null?cfg.t/1000:(ext?state.settings.wallOut:state.settings.wallIn);
       jobs.push({p,q,t,ext});});});
     jobs.sort((a,b)=>a.ext-b.ext);   /* 内壁→外壁の順に重ねる */
+    const WOUT=DM?'#2A3A49':'url(#wHatchOut)',WIN=DM?'#63717D':'url(#wHatchIn)';
     jobs.forEach(({p,q,t,ext})=>{const w=Math.max(2,t*MAG*S);
-      wl.appendChild(E('line',{x1:p[0]*S,y1:p[1]*S,x2:q[0]*S,y2:q[1]*S,stroke:ext?'url(#wHatchOut)':'url(#wHatchIn)','stroke-width':w,'stroke-linecap':'square'}));});
+      wl.appendChild(E('line',{x1:p[0]*S,y1:p[1]*S,x2:q[0]*S,y2:q[1]*S,stroke:ext?WOUT:WIN,'stroke-width':w,'stroke-linecap':'square'}));});
     /* 外周：建物枠の帯と、その外側の面線 */
-    wl.appendChild(E('rect',{x:0,y:0,width:f.footW*S,height:f.footH*S,fill:'none',stroke:'url(#wHatchOut)','stroke-width':outW}));
+    wl.appendChild(E('rect',{x:0,y:0,width:f.footW*S,height:f.footH*S,fill:'none',stroke:WOUT,'stroke-width':outW}));
     const oh=outW/2;
-    ol.appendChild(E('rect',{x:-oh,y:-oh,width:f.footW*S+outW,height:f.footH*S+outW,fill:'none',stroke:'#2A3742','stroke-width':1.6}));
+    ol.appendChild(E('rect',{x:-oh,y:-oh,width:f.footW*S+outW,height:f.footH*S+outW,fill:'none',stroke:'#2A3742','stroke-width':DM?2.2:1.6}));
+    if(DM){/* 隅の柱（作図上の表現。構造計算に基づくものではない） */
+      const cs=outW*1.5,h2=cs/2;
+      [[0,0],[f.footW,0],[0,f.footH],[f.footW,f.footH]].forEach(([x,y])=>
+        wl.appendChild(E('rect',{x:x*S-h2,y:y*S-h2,width:cs,height:cs,fill:'#16232F'})));}
     root.appendChild(wl);}
   root.appendChild(ol);
   root.appendChild(ll);
-  const eg=E('g',{});
+  const eg=E('g',{class:'glyphs'});
   f.elems.forEach(e=>{const rot=e.rot||0;const dw=e.w*S,dh=e.h*S,cx=e.x*S+dw/2,cy=e.y*S+dh/2;
     const g=E('g',{class:'obj'});g.dataset.type='elem';g.dataset.id=e.id;
     const cw=(rot%2===1?e.h:e.w)*S,ch=(rot%2===1?e.w:e.h)*S;
@@ -82,13 +103,108 @@ function renderSheet(){drawFloorId=state.activeFloorId;
     }
     if(view.sel.type==='room'&&view.vtx)o.poly.forEach((v,i)=>{const c=E('circle',{cx:v[0]*S,cy:v[1]*S,r:9,fill:'#fff',stroke:'var(--accent)','stroke-width':2,style:'cursor:move'});c.dataset.vi=i;c.addEventListener('pointerdown',ev=>startVertex(ev,o,i));hg.appendChild(c);});
     root.appendChild(hg);}
-  if(view.showDim){const dg=E('g',{});dimLine(dg,0,-.55,f.footW,-.55,`${mm(f.footW)}`,S,'h');dimLine(dg,-.55,0,-.55,f.footH,`${mm(f.footH)}`,S,'v');
+  if(view.showDim){const dg=E('g',{});
+    if(DM){
+      /* 外側から 総寸法 → 通り芯間 の2段。実際の図面と同じ並べ方にする。 */
+      dimLine(dg,0,-DIM_TOTAL,f.footW,-DIM_TOTAL,`${mm(f.footW)}`,S,'h');
+      dimLine(dg,-DIM_TOTAL,0,-DIM_TOTAL,f.footH,`${mm(f.footH)}`,S,'v');
+      for(let i=0;i<AX.xs.length-1;i++)
+        dimLine(dg,AX.xs[i],-DIM_CHAIN,AX.xs[i+1],-DIM_CHAIN,`${mm(AX.xs[i+1]-AX.xs[i])}`,S,'h');
+      for(let i=0;i<AX.ys.length-1;i++)
+        dimLine(dg,-DIM_CHAIN,AX.ys[i],-DIM_CHAIN,AX.ys[i+1],`${mm(AX.ys[i+1]-AX.ys[i])}`,S,'v');
+    }else{
+      dimLine(dg,0,-.55,f.footW,-.55,`${mm(f.footW)}`,S,'h');
+      dimLine(dg,-.55,0,-.55,f.footH,`${mm(f.footH)}`,S,'v');
+    }
     if(o){const b=(view.sel.type==='room')?bbox(o.poly):{x:o.x,y:o.y,w:o.w,h:o.h};dimLine(dg,b.x,b.y-.28,b.x+b.w,b.y-.28,`${mm(b.w)}`,S,'h','#0E7C86');dimLine(dg,b.x-.28,b.y,b.x-.28,b.y+b.h,`${mm(b.h)}`,S,'v','#0E7C86');}root.appendChild(dg);}
+  if(DM){
+    /* 図面枠・方位・表題欄はシート座標（rootの外）に描く */
+    const fr=E('g',{'pointer-events':'none'});
+    fr.appendChild(E('rect',{x:4.5,y:4.5,width:Wpx-9,height:Hpx-9,fill:'none',stroke:'#2A3A49','stroke-width':1.2}));
+    fr.appendChild(E('rect',{x:9.5,y:9.5,width:Wpx-19,height:Hpx-19-titleH,fill:'none',stroke:'#CBD6DF','stroke-width':.7}));
+    drawNorth(fr,Wpx-28,(Hpx-titleH)/2);
+    drawTitleBlock(fr,Wpx,Hpx,titleH,f,state);
+    sheet.appendChild(fr);
+  }
 }
 function cur(d){return ({nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'})[d];}
-function dimLine(g,x1m,y1m,x2m,y2m,label,S,dir,color){color=color||'#54677A';const x1=x1m*S,y1=y1m*S,x2=x2m*S,y2=y2m*S,t=5;g.appendChild(E('line',{x1,y1,x2,y2,stroke:color,'stroke-width':1}));
-  if(dir==='h'){g.appendChild(E('line',{x1,y1:y1-t,x2:x1,y2:y1+t,stroke:color,'stroke-width':1}));g.appendChild(E('line',{x1:x2,y1:y2-t,x2:x2,y2:y2+t,stroke:color,'stroke-width':1}));g.appendChild(txt((x1+x2)/2,y1-7,label,{mono:true,size:10,fill:color}));}
-  else{g.appendChild(E('line',{x1:x1-t,y1,x2:x1+t,y2:y1,stroke:color,'stroke-width':1}));g.appendChild(E('line',{x1:x2-t,y1:y2,x2:x2+t,y2:y2,stroke:color,'stroke-width':1}));const tt=txt(x1-7,(y1+y2)/2,label,{mono:true,size:10,fill:color});tt.setAttribute('transform',`rotate(-90 ${x1-7} ${(y1+y2)/2})`);g.appendChild(tt);}}
+function dimLine(g,x1m,y1m,x2m,y2m,label,S,dir,color){color=color||'#54677A';
+  const dm=!!view.drawMode,lw=dm?.6:1,fs=dm?9:10,t=dm?4:5;
+  const x1=x1m*S,y1=y1m*S,x2=x2m*S,y2=y2m*S;g.appendChild(E('line',{x1,y1,x2,y2,stroke:color,'stroke-width':lw}));
+  if(dir==='h'){g.appendChild(E('line',{x1,y1:y1-t,x2:x1,y2:y1+t,stroke:color,'stroke-width':lw}));g.appendChild(E('line',{x1:x2,y1:y2-t,x2:x2,y2:y2+t,stroke:color,'stroke-width':lw}));g.appendChild(txt((x1+x2)/2,y1-7,label,{mono:true,size:fs,fill:color}));}
+  else{g.appendChild(E('line',{x1:x1-t,y1,x2:x1+t,y2:y1,stroke:color,'stroke-width':lw}));g.appendChild(E('line',{x1:x2-t,y1:y2,x2:x2+t,y2:y2,stroke:color,'stroke-width':lw}));const tt=txt(x1-7,(y1+y2)/2,label,{mono:true,size:fs,fill:color});tt.setAttribute('transform',`rotate(-90 ${x1-7} ${(y1+y2)/2})`);g.appendChild(tt);}}
+/* ================= 設計図面モードの部品（通り芯・寸法・図面枠） =================
+   いずれも見た目だけで、面積集計・法規判定・収支には一切影響しない。 */
+
+/* 部屋の壁線から通り芯の候補を拾う。近い線はまとめ、細かすぎるものは間引く。 */
+function gridAxes(f){
+  const TOL=0.03,MIN_GAP=0.6,MAX_N=12;
+  const collect=(vals)=>{
+    const out=[];
+    vals.slice().sort((a,b)=>a-b).forEach(v=>{
+      const last=out[out.length-1];
+      if(last&&Math.abs(last.v-v)<TOL){last.n++;return;}
+      out.push({v,n:1});
+    });
+    return out;
+  };
+  const xs=[0,f.footW],ys=[0,f.footH];
+  f.rooms.forEach(r=>edges(r.poly).forEach(([p,q])=>{
+    if(Math.abs(p[0]-q[0])<1e-6)xs.push(p[0]);   /* 縦の壁 → X通り */
+    if(Math.abs(p[1]-q[1])<1e-6)ys.push(p[1]);   /* 横の壁 → Y通り */
+  }));
+  /* 出現回数の多い順に残し、近すぎる通りは落としてから座標順に並べ直す */
+  const pick=(vals,max)=>{
+    const cand=collect(vals).filter(o=>o.v>=-0.01&&o.v<=max+0.01);
+    const keep=[];
+    cand.slice().sort((a,b)=>b.n-a.n||a.v-b.v).forEach(o=>{
+      if(keep.length>=MAX_N)return;
+      if(keep.some(k=>Math.abs(k.v-o.v)<MIN_GAP))return;
+      keep.push(o);
+    });
+    return keep.map(o=>o.v).sort((a,b)=>a-b);
+  };
+  return{xs:pick(xs,f.footW),ys:pick(ys,f.footH)};
+}
+
+/* 通り芯（一点鎖線）と符号（○囲みのX1・Y1…） */
+function drawAxes(g,ax,f,S,mr,mb,tagAt){
+  const DASH='14 3 3 3',COL='#8FA0AE',tag=(tagAt||2.2)*S,ext=tag-13;
+  ax.xs.forEach((x,i)=>{
+    g.appendChild(E('line',{x1:x*S,y1:-ext,x2:x*S,y2:mb*S+.35*S,stroke:COL,'stroke-width':.7,'stroke-dasharray':DASH}));
+    axisTag(g,x*S,-tag,'X'+(i+1),COL);
+  });
+  ax.ys.forEach((y,i)=>{
+    g.appendChild(E('line',{x1:-ext,y1:y*S,x2:mr*S+.35*S,y2:y*S,stroke:COL,'stroke-width':.7,'stroke-dasharray':DASH}));
+    axisTag(g,-tag,y*S,'Y'+(i+1),COL);
+  });
+}
+function axisTag(g,cx,cy,label,col){
+  g.appendChild(E('circle',{cx,cy,r:9,fill:'#FFFFFF',stroke:col,'stroke-width':.8}));
+  g.appendChild(txt(cx,cy,label,{mono:true,size:8.5,fill:'#54677A',weight:700}));
+}
+
+/* 方位マーク（北は上向き固定） */
+function drawNorth(g,cx,cy){
+  const r=13,col='#2A3A49';
+  g.appendChild(E('circle',{cx,cy,r,fill:'none',stroke:col,'stroke-width':.9}));
+  g.appendChild(E('polygon',{points:`${cx},${cy-r+1} ${cx-4.5},${cy+r-4} ${cx},${cy+r-8} ${cx+4.5},${cy+r-4}`,fill:col}));
+  g.appendChild(txt(cx,cy-r-8,'N',{mono:true,size:10,fill:col,weight:700}));
+}
+
+/* 表題欄（シート下端の帯） */
+function drawTitleBlock(g,Wpx,Hpx,h,f,sc){
+  const y=Hpx-h,pad=10;
+  g.appendChild(E('rect',{x:0,y,width:Wpx,height:h,fill:'#FFFFFF',stroke:'#2A3A49','stroke-width':1}));
+  g.appendChild(E('line',{x1:0,y1:y+h*.46,x2:Wpx,y2:y+h*.46,stroke:'#CBD6DF','stroke-width':.7}));
+  const t=floorTotals(f),d=new Date();
+  const stamp=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  g.appendChild(txt(pad,y+h*.28,sc.name||'無題',{anchor:'start',size:11.5,weight:700,fill:'#16232F'}));
+  g.appendChild(txt(Wpx-pad,y+h*.28,f.name+' 平面図',{anchor:'end',size:11,weight:700,fill:'#16232F'}));
+  g.appendChild(txt(pad,y+h*.76,`床面積 ${f1(t.gross||0)}㎡ / ${f1((t.gross||0)/TSUBO)}坪`,{anchor:'start',mono:true,size:9.5,fill:'#54677A'}));
+  g.appendChild(txt(Wpx-pad,y+h*.76,`${mm(f.footW)} × ${mm(f.footH)}　${stamp}`,{anchor:'end',mono:true,size:9.5,fill:'#54677A'}));
+}
+
 /* ================= グリフ ================= */
 function drawGlyph(g,kind,w,h,opt,asOverlay){opt=opt||{};const flip=!!opt.flip,line='#2A3A49',soft='#54677A',horiz=w>=h;
   const box=(fill,stroke,sw)=>E('rect',{x:0,y:0,width:w,height:h,fill:fill||'none',stroke:stroke||line,'stroke-width':sw||1.3,rx:1});
