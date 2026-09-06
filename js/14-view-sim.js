@@ -123,7 +123,15 @@ function renderSimView(){const box=$('simView');box.innerHTML='';const G=state.f
   const c4=el('div','card');c4.appendChild(el('h3','','④ 実質住居費（賃料・税効果込み）'));
   if(r.need50){c4.appendChild(chk('住宅ローン控除を反映する（自宅部分のみ）',G.dedOn,v=>{G.dedOn=v;render();}));
     const dd=el('div','row2');dd.appendChild(fNum('控除率(%)',G.dedRate,.1,v=>{G.dedRate=v||0;render();}));dd.appendChild(fNum('控除年数',G.dedYears,1,v=>{G.dedYears=v||0;render();}));c4.appendChild(dd);
-    c4.appendChild(fNum('対象残高の上限(万円)',G.dedCap,100,v=>{G.dedCap=v||0;render();}));}
+    c4.appendChild(fNum('対象残高の上限(万円)',G.dedCap,100,v=>{G.dedCap=v||0;render();}));
+    /* 借主ごとの控除内訳：満額と、その人の税額で実際に使える額 */
+    if(r.dedParts&&r.dedParts.length){
+      const cut=r.dedParts.some(d=>d.raw-d.capped>0.005);
+      c4.appendChild(el('div','grid3','<span class="h">借主</span><span class="h">満額</span><span class="h">実際に使える額</span>'+
+        r.dedParts.map(d=>`<span class="g-k">${esc(d.name)}</span><span class="g-v">${f1(d.raw)}万</span>`+
+          `<span class="g-v ${d.capped<d.raw-0.005?'neg':'pos'}">${f1(d.capped)}万</span>`).join('')));
+      if(cut)c4.appendChild(el('div','refnote','⚠️ 年末残高の0.7%より、その人の所得税額＋住民税からの控除上限のほうが小さいため、<b>控除を使い切れていません</b>。年収・借入配分・所得控除の設定を見直すと変わります。'));
+    }}
   else c4.appendChild(el('div','refnote','採用中の「'+(LOANTYPES[r.LN.type]?.label||'')+'」では住宅ローン控除は適用されません。代わりに賃貸部分の減価償却による税効果を反映しています（設定は融資タブ）。'));
   c4.appendChild(el('div','grid3',`<span class="h">月あたり</span><span class="h">金額</span><span class="h"></span>`+
     `<span class="g-k">ローン返済</span><span class="g-v">−${fmt(r.payA1/12,1)}万</span><span class="g-v"></span>`+

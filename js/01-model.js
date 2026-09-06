@@ -174,6 +174,11 @@ function elem(kind,x,y,w,h,props){const d=ELEM[kind];return {id:nid('e'),kind,x,
 function defExtras(){return [{name:'地盤改良工事',amount:300},{name:'外構工事',amount:250},{name:'解体・引込・その他',amount:150}];}
 function defFinance(){return {
  incomeSelf:900,incomePartner:720,multSalary:8,multCombined:10,
+ /* 借入形態: single=単独 / combined=収入合算 / pair=ペアローン（2本立て・持分と控除を各自で持つ） */
+ borrowMode:'combined',
+ /* ペアローンの借入配分: income=年収比で自動 / manual=本人の借入額を手入力 */
+ pairSplit:'income',pairSelfLoan:null,
+ nameSelf:'本人',namePartner:'パートナー',
  equity:3000,loanCap:13000,
  loanType:'annuity',rateActual:0.9,rateScreen:3.5,years:35,dsrLimit:35,
  rateList:'0.6, 0.9, 1.5, 2.0',stressOn:0,stressAfter:10,stressAdd:1.0,
@@ -186,6 +191,10 @@ function migrateFinance(g){const d=defFinance();if(!g)return d;const o=Object.as
  if(g.rateActual==null&&g.rate!=null)o.rateActual=g.rate;
  if(!g.loanType)o.loanType='annuity';
  if(g.dedOn==null)o.dedOn=1;
+ if(!g.borrowMode)o.borrowMode='combined';
+ if(!g.pairSplit)o.pairSplit='income';
+ if(!g.nameSelf)o.nameSelf='本人';
+ if(!g.namePartner)o.namePartner='パートナー';
  if(!g.rateList)o.rateList=d.rateList;
  if(!Array.isArray(o.repairs))o.repairs=defFinance().repairs;
  return o;}
@@ -216,7 +225,13 @@ function defLoans(){return [
  {id:nid('L'),name:'スルガ銀行',product:'アパートローン',type:'apart',rate:2.5,rateScreen:3.5,years:30,method:'annuity',dsrLimit:40,includeRentPct:70,capAmount:16000,feePct:2.2,note:'賃料の70%程度を収入合算可。金利は属性次第。'},
  {id:nid('L'),name:'千葉銀行',product:'プロパー融資',type:'proper',rate:1.5,rateScreen:2.5,years:30,method:'annuity',dsrLimit:40,includeRentPct:100,capAmount:15000,feePct:1.1,note:'事業性評価。DSCR 1.2以上目安。'}];}
 function defTax(){return {marginalRate:33,rentalTaxOn:1,bodyYears:22,equipPct:20,equipYears:15,bldRatioManual:null,
- entity:'personal',corpRate:34,salaryIncome:1620,carryLoss:1,bizTaxOn:0,capexOn:0};}
+ entity:'personal',corpRate:34,carryLoss:1,bizTaxOn:0,capexOn:0,
+ /* 税率の決め方: auto=年収から所得税速算表で算出 / manual=marginalRateを手入力 */
+ rateMode:'auto',
+ /* 所得控除の概算（年収から課税所得を出すため）。socialPct=社会保険料の本人負担率, deductOther=基礎控除など(万円) */
+ socialPct:14.4,deductOther:48,
+ /* 住宅ローン控除を「その人の所得税額＋住民税からの控除上限」で頭打ちにするか */
+ dedCapByTax:1};}
 /* 構造（工法）：法定耐用年数（住宅用・躯体）と概算坪単価の目安 */
 const STRUCTURES=[
  {v:'wood',label:'木造',years:22,unit:77,loanYears:35,note:'法定耐用年数22年。坪単価が最も安く、アパート・戸建の主流。'},
@@ -248,7 +263,11 @@ function migrateScenario(sc){sc.finance=migrateFinance(sc.finance);
  if(!sc.tax)sc.tax=defTax();
  if(!sc.tax.entity)sc.tax.entity='personal';
  if(sc.tax.corpRate==null)sc.tax.corpRate=34;
- if(sc.tax.salaryIncome==null)sc.tax.salaryIncome=(+sc.finance.incomeSelf||0)+(+sc.finance.incomePartner||0);
+ if(!sc.tax.rateMode)sc.tax.rateMode='auto';
+ if(sc.tax.socialPct==null)sc.tax.socialPct=14.4;
+ if(sc.tax.deductOther==null)sc.tax.deductOther=48;
+ if(sc.tax.dedCapByTax==null)sc.tax.dedCapByTax=1;
+ delete sc.tax.salaryIncome;/* 未使用だったフィールド。年収は finance.incomeSelf / incomePartner が正 */
  if(sc.tax.carryLoss==null)sc.tax.carryLoss=1;
  if(sc.tax.bizTaxOn==null)sc.tax.bizTaxOn=0;
  if(sc.tax.capexOn==null)sc.tax.capexOn=0;

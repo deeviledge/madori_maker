@@ -121,7 +121,7 @@ function renderHomeSim(box,G,r){
   if(r.need50||mode()==='home'){c2.appendChild(chk('住宅ローン控除を反映する',G.dedOn,v=>{G.dedOn=v;render();}));
     const dd=el('div','row2');dd.appendChild(fNum('控除率(%)',G.dedRate,.1,v=>{G.dedRate=v||0;render();}));dd.appendChild(fNum('控除年数',G.dedYears,1,v=>{G.dedYears=v||0;render();}));c2.appendChild(dd);
     c2.appendChild(fNum('対象残高の上限(万円)',G.dedCap,100,v=>{G.dedCap=v||0;render();}));}
-  const homeDed=(G.dedOn)?dedForYear(1,r.schA,r.loan,1,G):0;/* 自宅モードは全額自宅→ownRatio=1 */
+  const homeDed=(G.dedOn)?dedForYear(1,r.schA,r.loan,1,G,state):0;/* 自宅モードは全額自宅→ownRatio=1 */
   const netM=r.payA1/12-homeDed/12;
   c2.appendChild(el('div','grid2',`<span class="g-k">ローン返済/月</span><span class="g-v">−${fmt(r.payA1/12,1)}万</span><span class="g-k">住宅ローン控除/月</span><span class="g-v pos">+${fmt(homeDed/12,1)}万</span>`));
   c2.appendChild(el('div','big',`<span class="k">実質住居費（初年度・月）</span><span class="v">${fmt(netM,1)} 万円</span>`));

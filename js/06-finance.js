@@ -57,8 +57,98 @@ function deprForYear(y,sc,c,rentalRatio){const T=sc.tax;if(!T||!T.rentalTaxOn)re
  return d;}
 /* 建物簿価（取得原価−累計償却、万円） */
 function bldBookValue(y,sc,c,rentalRatio){const T=sc.tax;const bld=deprBase(sc,c,rentalRatio);let acc=0;for(let i=1;i<=y;i++)acc+=deprForYear(i,sc,c,rentalRatio);return Math.max(0,bld-acc);}
+/* ================= 年収から税額を出すエンジン（個人・概算） =================
+   すべて「万円」単位。制度は一般的な恒久措置のみを実装し、
+   定額減税などの単年度特例・所得金額調整控除は入れていない。 */
+
+/* 給与所得控除（令和2年分以降）。給与収入(万円) → 控除額(万円) */
+function salaryDeductionOf(inc){
+  if(inc<=162.5)return Math.min(inc,55);
+  if(inc<=180)return inc*0.4-10;
+  if(inc<=360)return inc*0.3+8;
+  if(inc<=660)return inc*0.2+44;
+  if(inc<=850)return inc*0.1+110;
+  return 195;/* 上限 */
+}
+/* 所得税の速算表 [課税所得の上限(万), 税率%, 控除額(万)] */
+const INCOME_TAX_TABLE=[[195,5,0],[330,10,9.75],[695,20,42.75],[900,23,63.6],[1800,33,153.6],[4000,40,279.6],[Infinity,45,479.6]];
+function incomeTaxOf(taxable){
+  if(!(taxable>0))return 0;
+  const row=INCOME_TAX_TABLE.find(r=>taxable<=r[0]);
+  return Math.max(0,taxable*row[1]/100-row[2]);
+}
+function incomeTaxMarginalOf(taxable){
+  if(!(taxable>0))return 0;
+  return (INCOME_TAX_TABLE.find(r=>taxable<=r[0]))[1];
+}
+const RESIDENT_RATE=10;/* 住民税所得割（都道府県＋市区町村） */
+
+/* 給与収入(万円) → その人の税プロフィール。
+   taxable: 課税所得 ＝ 給与収入 − 給与所得控除 − 社会保険料 − その他所得控除
+   marginal: 限界税率（所得税＋住民税10%）
+   dedRoom: 住宅ローン控除で使い切れる上限 ＝ 所得税額 ＋ min(課税所得×5%, 9.75万) */
+function taxProfile(income,T){
+  T=T||(state&&state.tax)||{};
+  const inc=Math.max(0,+income||0);
+  const salaryDed=salaryDeductionOf(inc);
+  const social=inc*(+T.socialPct||0)/100;
+  const other=+T.deductOther||0;
+  const taxable=Math.max(0,inc-salaryDed-social-other);
+  const incomeTax=incomeTaxOf(taxable);
+  const residentTax=taxable*RESIDENT_RATE/100;
+  const marginal=incomeTaxMarginalOf(taxable)+RESIDENT_RATE;
+  const dedRoom=incomeTax+Math.min(taxable*0.05,9.75);
+  return{income:inc,salaryDed,social,other,taxable,incomeTax,residentTax,marginal,dedRoom};
+}
+
+/* ================= 借入形態（単独／収入合算／ペアローン） =================
+   ratio は「借入の負担割合」。ペアローンでは持分・住宅ローン控除・不動産所得の
+   按分もこの割合を使う（借入額に応じて持分を持つ、という一般的な組み方の前提）。 */
+function borrowerList(sc,loan){
+  sc=sc||state;const G=sc.finance;
+  if(loan==null)loan=Math.max(0,computeCost(sc).total-(+G.equity||0));
+  const a=Math.max(0,+G.incomeSelf||0),b=Math.max(0,+G.incomePartner||0);
+  const nameA=G.nameSelf||'本人',nameB=G.namePartner||'パートナー';
+  const mode=G.borrowMode||'combined';
+  if(mode==='single')return[{name:nameA,income:a,taxIncome:a,ratio:1,solo:1}];
+  if(mode==='pair'){
+    let ra;
+    if(G.pairSplit==='manual'&&loan>0&&G.pairSelfLoan!=null&&G.pairSelfLoan!==''){
+      ra=Math.min(1,Math.max(0,(+G.pairSelfLoan||0)/loan));
+    }else{
+      ra=(a+b)>0?a/(a+b):0.5;
+    }
+    return[{name:nameA,income:a,taxIncome:a,ratio:ra,solo:1},{name:nameB,income:b,taxIncome:b,ratio:1-ra,solo:1}];
+  }
+  /* combined: 世帯を1人の借主とみなす（収入合算）。
+     審査は合算年収だが、住宅ローン控除・損益通算は主たる債務者（年収の高い方）1人分として扱う。 */
+  return[{name:nameA+'＋'+nameB,income:a+b,taxIncome:Math.max(a,b),ratio:1,solo:0}];
+}
+/* 各借主に税プロフィールと借入額を付ける */
+function borrowerParts(sc,loan){
+  sc=sc||state;const T=sc.tax||{};
+  return borrowerList(sc,loan).map(p=>{
+    const prof=taxProfile(p.taxIncome,T);
+    return Object.assign({},p,{loan:loan*p.ratio,prof,rate:prof.marginal});
+  });
+}
+/* 個人の適用税率（%）。auto は借入割合で加重平均した限界税率を1本の代表値として返す */
+function personalRate(sc){
+  sc=sc||state;const T=sc.tax||{};
+  if(T.rateMode!=='auto')return +T.marginalRate||0;
+  const G=sc.finance,mode=G.borrowMode||'combined';
+  if(mode==='combined'){
+    /* 収入合算：主たる債務者（年収の高い方）の限界税率 */
+    const top=Math.max(+G.incomeSelf||0,+G.incomePartner||0);
+    return taxProfile(top,T).marginal;
+  }
+  const ps=borrowerParts(sc);
+  const sum=ps.reduce((a,p)=>a+p.ratio,0)||1;
+  return ps.reduce((a,p)=>a+p.rate*p.ratio,0)/sum;
+}
+
 /* 税率（その年の適用税率%）: 個人=限界税率, 法人=実効法人税率 */
-function taxRate(sc){const T=sc.tax;return T.entity==='corp'?(+T.corpRate||0):(+T.marginalRate||0);}
+function taxRate(sc){const T=sc.tax;return T.entity==='corp'?(+T.corpRate||0):personalRate(sc);}
 /* 不動産所得の税効果（単年・繰越なし簡易。+なら納税/−なら節税、万円/年） */
 function taxEffectYear(y,sc,c,sch,rentalRatio,noi,eff){const T=sc.tax;if(!T||!T.rentalTaxOn)return{tax:0,dep:0,taxable:0};
  const dep=deprForYear(y,sc,c,rentalRatio);
@@ -89,7 +179,23 @@ function financeCalc(sc){sc=sc||state;const c=computeCost(sc),G=sc.finance,LN=ac
   const need50=LN.type==='jutaku';
   /* 住宅ローン控除（住宅ローンのみ） */
   const dedEnabled=need50&&G.dedOn;
-  const ded1=dedEnabled?dedForYear(1,schA,loan,ownRatio,G):0;
+  const dedD=dedEnabled?dedDetail(1,schA,loan,ownRatio,G,sc):{total:0,parts:[]};
+  const ded1=dedD.total;
+  /* 借主ごとの審査（ペアローンでは各自の年収・各自の借入額で判定する） */
+  const rentAdd=mRent*12*(+LN.includeRentPct||0)/100;
+  const tmode=(sc.tax&&sc.tax.rateMode)||'auto';
+  const isCorpSc=sc.tax&&sc.tax.entity==='corp';
+  const borrowers=borrowerParts(sc,loan).map(p=>{
+    /* 実際に適用される税率（手入力モードなら全員その値、法人なら実効法人税率） */
+    const applied=isCorpSc?(+sc.tax.corpRate||0):(tmode==='auto'?p.rate:(+sc.tax.marginalRate||0));
+    const roomUsed=(!isCorpSc)&&tmode==='auto'&&sc.tax.dedCapByTax;
+    const incEff=p.income+rentAdd*p.ratio;
+    const maxSal=p.income*(+G.multSalary||0),maxComb=incEff*(+G.multCombined||0);
+    const payA=payA1*p.ratio,payS=payS1*p.ratio;
+    return Object.assign({},p,{rate:applied,autoRate:p.rate,roomUsed,incomeEff:incEff,maxSalary:maxSal,maxCombined:maxComb,payA,payS,
+      dsrA:incEff>0?payA/incEff*100:0,dsrS:incEff>0?payS/incEff*100:0,
+      capOk:p.loan<=Math.max(maxSal,maxComb)});});
+  const pairOn=(G.borrowMode||'combined')==='pair';
   /* 税効果（不動産所得: 減価償却・利息按分） */
   const tx1=taxEffectYear(1,sc,c,schA,rentalRatio,noi,effRent);
   const netMonthly1=payA1/12-noi/12-ded1/12+tx1.tax/12;
@@ -110,14 +216,34 @@ function financeCalc(sc){sc=sc||state;const c=computeCost(sc),G=sc.finance,LN=ac
   const berRatio=rentYear>0?(opexTotal+payA1)/rentYear*100:0;  /* 損益分岐入居率(BER) */
   /* 年次CF */
   const cf=cfSeries(schStress||schA,loan,ownRatio,G,sc,c,dedEnabled);
-  return{c,income,incomeEff,mRent,loan,capAmount,maxSalary,maxCombined,capOk,schA,schStress,payA1,payS1,dsrA,dsrS,rentYear,effRent,noi,grossY,grossYB,effY,netY,kPct,dscr,yieldGap,ccr,ownRatio,rentalRatio,need50,dedEnabled,ded1,tx1,netMonthly1,cf,stress,LN,repayRatio,expenseRatio,berRatio};}
-function dedForYear(y,sch,loan,ownRatio,G){if(!G.dedOn||y>(+G.dedYears||0))return 0;
+  return{c,income,incomeEff,mRent,loan,capAmount,maxSalary,maxCombined,capOk,schA,schStress,payA1,payS1,dsrA,dsrS,rentYear,effRent,noi,grossY,grossYB,effY,netY,kPct,dscr,yieldGap,ccr,ownRatio,rentalRatio,need50,dedEnabled,ded1,dedParts:dedD.parts,borrowers,pairOn,tx1,netMonthly1,cf,stress,LN,repayRatio,expenseRatio,berRatio};}
+/* 住宅ローン控除（万円/年）。借主ごとに「自分の残高 × 自宅割合」を上限額で切り、
+   さらに自分の所得税額＋住民税からの控除上限（dedRoom）で頭打ちにして合計する。
+   戻り値 {total, parts:[{name,ratio,bal,raw,room,capped}]} */
+function dedDetail(y,sch,loan,ownRatio,G,sc){
+  sc=sc||state;const T=sc.tax||{};const out={total:0,parts:[]};
+  if(!G.dedOn||y>(+G.dedYears||0))return out;
   const bal=sch.yr[y-1]?sch.yr[y-1].bal:0;
-  const target=Math.min(bal*ownRatio,+G.dedCap||0);
-  return target*(+G.dedRate||0)/100;}
+  const useRoom=(T.entity!=='corp')&&T.rateMode==='auto'&&T.dedCapByTax;
+  borrowerParts(sc,loan).forEach(p=>{
+    const myBal=bal*p.ratio;
+    const target=Math.min(myBal*ownRatio,+G.dedCap||0);
+    const raw=target*(+G.dedRate||0)/100;
+    const room=useRoom?p.prof.dedRoom:Infinity;
+    const capped=Math.min(raw,room);
+    out.parts.push({name:p.name,ratio:p.ratio,bal:myBal,raw,room,capped});
+    out.total+=capped;});
+  return out;}
+function dedForYear(y,sch,loan,ownRatio,G,sc){return dedDetail(y,sch,loan,ownRatio,G,sc).total;}
 function cfSeries(sch,loan,ownRatio,G,sc,c,dedEnabled){sc=sc||state;c=c||computeCost(sc);const rows=[];let cum=0;const H=Math.max(1,Math.round(+G.holdYears||1));
   const base=rentTotal(sc)*12,curve=sc.rent.curve,rentalRatio=1-ownRatio;
-  const T=sc.tax||{};const rate=taxRate(sc);let carry=0;/* 繰越欠損（万円） */
+  const T=sc.tax||{};const isCorp=T.entity==='corp';
+  /* 借主ごとに税率と繰越欠損を持つ。ペアローンでは不動産所得を借入割合で按分して各自の税率で課税する。
+     単独・収入合算・法人は1人分の配列になるので、以下のループは従来と同じ結果になる。 */
+  const parts=isCorp
+    ?[{name:'法人',ratio:1,rate:+T.corpRate||0}]
+    :borrowerParts(sc,loan).map(p=>Object.assign({},p,{rate:T.rateMode==='auto'?p.rate:(+T.marginalRate||0)}));
+  const carries=parts.map(()=>0);/* 繰越欠損（万円・借主ごと） */
   for(let y=1;y<=H;y++){
     const rent=base*ageFactor(y,curve);
     const eff=rent*(1-(+G.vacancy||0)/100);
@@ -126,22 +252,30 @@ function cfSeries(sch,loan,ownRatio,G,sc,c,dedEnabled){sc=sc||state;c=c||compute
     const noi=eff-mgmt-opx-fixed;
     const repair=(G.repairs||[]).filter(r=>+r.year===y).reduce((a,r)=>a+(+r.amount||0),0);
     const Y=sch.yr[y-1]||{pay:0,bal:0,int:0,pri:0};
-    const ded=dedEnabled?dedForYear(y,sch,loan,ownRatio,G):0;
+    const dd=dedEnabled?dedDetail(y,sch,loan,ownRatio,G,sc):{total:0,parts:[]};
+    const ded=dd.total;
     const dep=(T.rentalTaxOn)?deprForYear(y,sc,c,rentalRatio):0;
     /* 課税所得（不動産所得）: NOI−利息(按分)−償却−修繕(当期経費) */
-    let pretax=noi-Y.int*rentalRatio-dep-repair;
-    let taxable=pretax,usedCarry=0,tax=0;
+    const pretax=noi-Y.int*rentalRatio-dep-repair;
+    let taxable=0,tax=0;const taxParts=[];
     if(T.rentalTaxOn){
-      if(T.carryLoss){
-        if(pretax<0){carry+=-pretax;taxable=0;}
-        else{usedCarry=Math.min(carry,pretax);taxable=pretax-usedCarry;carry-=usedCarry;}
-      }
-      tax=Math.max(0,taxable)*rate/100;
-      /* 個人は給与と損益通算できるため、赤字なら節税(マイナス税) */
-      if(sc.tax.entity==='personal'&&pretax<0&&!T.carryLoss)tax=pretax*rate/100;
+      parts.forEach((p,i)=>{
+        const pre=pretax*p.ratio;
+        let tb=pre,tx=0;
+        if(T.carryLoss){
+          if(pre<0){carries[i]+=-pre;tb=0;}
+          else{const u=Math.min(carries[i],pre);tb=pre-u;carries[i]-=u;}
+          tx=Math.max(0,tb)*p.rate/100;
+        }else{
+          /* 個人は給与と損益通算できるため、赤字なら節税(マイナス税)。法人は0止まり。 */
+          tx=(!isCorp&&pre<0)?pre*p.rate/100:Math.max(0,pre)*p.rate/100;
+        }
+        taxable+=Math.max(0,tb);tax+=tx;
+        taxParts.push({name:p.name,ratio:p.ratio,rate:p.rate,pretax:pre,taxable:tb,tax:tx});});
     }
+    const carry=carries.reduce((a,v)=>a+v,0);
     const cf=noi-repair-Y.pay+ded-tax;cum+=cf;
-    rows.push({y,rent,eff,noi,repair,pay:Y.pay,int:Y.int,ded,dep,pretax,taxable,carry,tax,cf,cum,bal:Y.bal});}
+    rows.push({y,rent,eff,noi,repair,pay:Y.pay,int:Y.int,ded,dedParts:dd.parts,dep,pretax,taxable,carry,tax,taxParts,cf,cum,bal:Y.bal});}
   return rows;}
 /* ================= 出口・売却・IRR ================= */
 function exitCalc(sc,r){const X=sc.exit||defExit(),c=r.c,rr=r.rentalRatio;const H=Math.max(1,Math.round(+X.holdYears||1));

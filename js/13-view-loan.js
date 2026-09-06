@@ -27,10 +27,55 @@ function renderLoanView(){const box=$('loanView');box.innerHTML='';const G=state
   box.appendChild(bd);
   /* 資金計画 */
   const cd0=el('div','card');cd0.appendChild(el('h3','','資金計画（共通）'));
-  const inc=el('div','row2');inc.appendChild(fNum('自分の年収(万)',G.incomeSelf,10,v=>{G.incomeSelf=v||0;render();}));inc.appendChild(fNum('パートナー年収(万)',G.incomePartner,10,v=>{G.incomePartner=v||0;render();}));cd0.appendChild(inc);
+  /* --- 借入形態（単独／収入合算／ペアローン） --- */
+  const BORROWMODES=[['single','単独'],['combined','収入合算'],['pair','ペアローン']];
+  const bm=G.borrowMode||'combined';
+  cd0.appendChild(el('div','fieldlbl','借入形態'));
+  const bseg=el('div','segrow','');
+  BORROWMODES.forEach(([v,lb])=>{const b=document.createElement('button');b.type='button';b.textContent=lb;
+    b.className=(bm===v?'on':'');b.onclick=()=>{G.borrowMode=v;render();};bseg.appendChild(b);});
+  cd0.appendChild(bseg);
+  cd0.appendChild(el('div','hint',
+    bm==='single'?'本人1人で借ります。パートナーの年収は審査にも税計算にも使いません。'
+    :bm==='combined'?'2人の年収を合算して1本で借ります（収入合算）。住宅ローン控除と損益通算は<b>主たる債務者（年収の高い方）1人分</b>として計算します。'
+    :'2人がそれぞれ借ります。<b>借入割合＝持分</b>とみなし、住宅ローン控除・不動産所得の損益通算を<b>各自別々に</b>計算します。'));
+  const inc=el('div','row2');
+  inc.appendChild(fNum((G.nameSelf||'本人')+'の年収(万)',G.incomeSelf,10,v=>{G.incomeSelf=v||0;render();}));
+  if(bm!=='single')inc.appendChild(fNum((G.namePartner||'パートナー')+'の年収(万)',G.incomePartner,10,v=>{G.incomePartner=v||0;render();}));
+  cd0.appendChild(inc);
+  if(bm==='pair'){
+    const sp=el('div','row2');
+    sp.appendChild(fSelect('借入の配分',[['income','年収比で自動'],['manual','本人の借入額を指定']],G.pairSplit||'income',v=>{G.pairSplit=v;render();}));
+    if((G.pairSplit||'income')==='manual')
+      sp.appendChild(fNum((G.nameSelf||'本人')+'の借入額(万)',G.pairSelfLoan!=null?G.pairSelfLoan:Math.round(r.loan/2),100,v=>{G.pairSelfLoan=v;render();}));
+    cd0.appendChild(sp);
+  }
   const eq=el('div','row2');eq.appendChild(fNum('自己資金(万)',G.equity,50,v=>{G.equity=v||0;render();}));eq.appendChild(fNum('現在の家賃(万/月)',G.currentRent,.5,v=>{G.currentRent=v||0;render();}));cd0.appendChild(eq);
   cd0.appendChild(el('div','grid2',`<span class="g-k">総事業費</span><span class="g-v">${yen(c.total)}</span><span class="g-k">− 自己資金</span><span class="g-v">${yen(+G.equity||0)}</span><span class="g-k">＝ 借入必要額</span><span class="g-v"><b>${yen(r.loan)}</b></span>`+(mode()!=='home'?`<span class="g-k">想定賃料（レントロール計）</span><span class="g-v">${f1(mRent)} 万/月</span>`:'')));
   box.appendChild(cd0);
+  /* --- 借主ごとの内訳 --- */
+  if(r.borrowers&&r.borrowers.length){
+    const bw=el('div','card');
+    bw.appendChild(el('h3','','借主ごとの内訳'+(r.pairOn?'<span class="tag">ペアローン</span>':'')));
+    const cw=el('div','comp');const tb=document.createElement('table');
+    const head='<tr class="hd"><th>項目</th>'+r.borrowers.map(p=>`<th>${esc(p.name)}</th>`).join('')+'</tr>';
+    const brows=[
+      ['年収',p=>yen(p.income)],
+      ['借入割合',p=>f1(p.ratio*100)+'%'],
+      ['借入額',p=>yen(p.loan)],
+      ['年収倍率の上限',p=>yen(Math.max(p.maxSalary,p.maxCombined))],
+      ['枠内か',p=>p.capOk?'<b style="color:var(--ok)">✓</b>':'<b style="color:var(--ng)">✗ '+yen(p.loan-Math.max(p.maxSalary,p.maxCombined))+'超</b>'],
+      ['返済比率(審査)',p=>`<b style="color:${p.dsrS>(+r.LN.dsrLimit||100)?'var(--ng)':'var(--ok)'}">${f1(p.dsrS)}%</b>`],
+      ['課税所得(概算)',p=>yen(p.prof.taxable)],
+      ['適用税率',p=>f1(p.rate)+'%'+(p.roomUsed?'':'<small style="color:var(--ink-soft)">（手入力）</small>')],
+      ['控除に使える税額/年',p=>p.roomUsed?yen(p.prof.dedRoom):'<span style="color:var(--ink-soft)">頭打ちなし</span>']
+    ];
+    let body='';brows.forEach(([lb,fn])=>{body+='<tr><td>'+lb+'</td>'+r.borrowers.map(p=>'<td>'+fn(p)+'</td>').join('')+'</tr>';});
+    tb.innerHTML=head+body;cw.appendChild(tb);bw.appendChild(cw);
+    bw.appendChild(el('div','refnote','💡 課税所得・限界税率・控除に使える税額は、年収から給与所得控除・社会保険料（'+f1(+state.tax.socialPct||0)+'%）・その他所得控除（'+f0(+state.tax.deductOther||0)+'万円）を引いた概算です。控除に使える税額＝所得税額＋住民税からの控除上限（課税所得の5%・最大9.75万円）。設定は下の「税効果」で変えられます。'
+      +(r.pairOn?'　ペアローンは<b>借入割合＝持分</b>として各自で計算します。金利・年数は採用プランの条件を2人共通で使います。':'')));
+    box.appendChild(bw);
+  }
   /* 銀行・ローンパターン */
   const cd1=el('div','card');cd1.appendChild(el('h3','','銀行・融資パターン<span class="tag">タップで採用</span>'));
   cd1.appendChild(el('div','hint','複数の銀行×商品を登録して比較。<b>採用</b>したプランが収支・比較・PDFに反映されます。50%ルールは住宅ローンのみ要件として判定します。'));
@@ -100,8 +145,22 @@ function renderLoanView(){const box=$('loanView');box.innerHTML='';const G=state
   seg.appendChild(bp);seg.appendChild(bc);
   const t1=el('div','row2');
   if(T.entity==='corp')t1.appendChild(fNum('法人実効税率(%)',T.corpRate,1,v=>{T.corpRate=v||0;render();}));
-  else t1.appendChild(fNum('限界税率(所得+住民 %)',T.marginalRate,1,v=>{T.marginalRate=v||0;render();}));
+  else t1.appendChild(fSelect('税率の決め方',[['auto','年収から自動計算'],['manual','限界税率を手入力']],T.rateMode||'auto',v=>{T.rateMode=v;render();}));
   t1.appendChild(fNum('設備割合(%)',T.equipPct,5,v=>{T.equipPct=v||0;render();}));cd3.appendChild(t1);
+  if(T.entity!=='corp'){
+    if((T.rateMode||'auto')==='auto'){
+      const ta=el('div','row2');
+      ta.appendChild(fNum('社会保険料の本人負担(%)',T.socialPct,.1,v=>{T.socialPct=v||0;render();}));
+      ta.appendChild(fNum('その他所得控除(万)',T.deductOther,1,v=>{T.deductOther=v||0;render();}));
+      cd3.appendChild(ta);
+      cd3.appendChild(chk('住宅ローン控除を「その人の税額」で頭打ちにする',T.dedCapByTax,v=>{T.dedCapByTax=v;render();}));
+      cd3.appendChild(el('div','grid2',r.borrowers.map(p=>
+        `<span class="g-k">${esc(p.name)}の限界税率</span><span class="g-v"><b>${f1(p.autoRate)}%</b>（課税所得 ${yen(p.prof.taxable)}）</span>`).join('')));
+    }else{
+      cd3.appendChild(fNum('限界税率(所得+住民 %)',T.marginalRate,1,v=>{T.marginalRate=v||0;render();}));
+      cd3.appendChild(el('div','hint','手入力の税率を全員に適用します。年収ごとの税率・住宅ローン控除の頭打ちを反映したい場合は「年収から自動計算」を選んでください。'));
+    }
+  }
   const t2=el('div','row2');t2.appendChild(fNum('躯体 償却年数',T.bodyYears,1,v=>{T.bodyYears=Math.max(1,v||22);render();}));t2.appendChild(fNum('設備 償却年数',T.equipYears,1,v=>{T.equipYears=Math.max(1,v||15);render();}));cd3.appendChild(t2);
   {const si2=structInfo(state.structure||'wood');cd3.appendChild(el('div','ratio '+(T.bodyYears===si2.years?'ok':'warn'),`<span>構造：${esc(si2.label)}</span><span>法定耐用年数 ${si2.years}年 ${T.bodyYears===si2.years?'✓反映済':'（現在'+T.bodyYears+'年）'}</span>`));}
   cd3.appendChild(el('div','hint','躯体の償却年数は構造で決まります（コストタブ②の「構造（工法）」で選択）。中古取得の場合は法定年数より短くなる（簡便法）ため、手入力で上書きもできます。'));
