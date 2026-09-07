@@ -268,10 +268,10 @@ function snapTo(map,v,tol){
 
 /* 1フロアぶんの整列。dry:true なら数えるだけで書き換えない。
    寄せ先は「部屋の頂点＋建物枠」だけから作る。家具の座標で壁が引っぱられないようにするため。
-   設備は独立に寄せず、整列後に位置連れさせる：
-     ・開口部（ドア・窓）は最寄りの壁へ付け直す（壁沿いの位置は保つ）
-     ・部屋の中の家具・階段は、その部屋が動いたぶんだけ平行移動する
-     ・どの部屋にも属さない設備は座標クラスタへ寄せる（従来どおり） */
+   設備は独立に寄せず、整列後の扱いを種類で分ける：
+     ・開口部（ドア・窓）は最寄りの壁へ必ず付け直す（壁沿いの位置は保つ）
+     ・家具・階段は既定では動かさない。壁にかかっていても実用上は困らないうえ、
+       勝手に動くほうが困るため。opt.furniture:true のときだけ部屋に追従させる */
 function alignFloorGeometry(f,tolMm,opt){
   opt=opt||{};const tol=Math.max(0,(+tolMm||60)/1000);
   if(!(tol>0))return{moved:0,rooms:0,elems:0,openings:0};
@@ -300,16 +300,15 @@ function alignFloorGeometry(f,tolMm,opt){
       return[nx,ny];});
     if(hit){r.poly=np;moved+=hit;rooms++;}});
 
+  const moveFurniture=opt.furniture===true;
   follow.forEach(a=>{
     const e=a.e,x0=e.x,y0=e.y;
     if(a.opening){
-      snapOpening(e,f);                       /* 壁に乗っているので壁へ付け直す */
-    }else if(a.host){
-      const hb=bbox(a.host.poly);             /* 部屋が動いたぶんだけ一緒に動かす */
-      e.x+=hb.x-a.hx;e.y+=hb.y-a.hy;
-    }else{
-      e.x=snapTo(mx,e.x,tol);e.y=snapTo(my,e.y,tol);
-    }
+      snapOpening(e,f);                       /* 窓・ドアは必ず壁へ乗せる */
+    }else if(moveFurniture){
+      if(a.host){const hb=bbox(a.host.poly);e.x+=hb.x-a.hx;e.y+=hb.y-a.hy;}
+      else{e.x=snapTo(mx,e.x,tol);e.y=snapTo(my,e.y,tol);}
+    }else return;                             /* 家具・階段はそのまま置いておく */
     if(Math.abs(e.x-x0)>1e-9||Math.abs(e.y-y0)>1e-9){moved++;elems++;if(a.opening)openings++;}
   });
   return{moved,rooms,elems,openings};
@@ -327,17 +326,18 @@ function runSnapOpenings(allFloors){
 /* 画面から呼ぶ入口。allFloors:true なら全階に適用する。 */
 function runAlign(tolMm,allFloors){
   const targets=allFloors?state.floors:[F()];
-  const pre=targets.reduce((a,f)=>{const d=alignFloorGeometry(f,tolMm,{dry:true});
+  const optF={furniture:!!window._alignFurniture};
+  const pre=targets.reduce((a,f)=>{const d=alignFloorGeometry(f,tolMm,Object.assign({dry:true},optF));
     return{moved:a.moved+d.moved,rooms:a.rooms+d.rooms,elems:a.elems+d.elems,openings:a.openings+d.openings};},{moved:0,rooms:0,elems:0,openings:0});
   if(!pre.moved){alert('ズレは見つかりませんでした（許容 '+tolMm+'mm 以内で寄せる点なし）。');return;}
   const before=targets.map(f=>floorTotals(f).gross);
-  if(!confirm(`許容 ${tolMm}mm で ${pre.moved} 箇所を揃えます。\n・部屋 ${pre.rooms}\n・設備 ${pre.elems}（うち壁に付け直す開口部 ${pre.openings}）\n\n開口部は壁と一緒に動き、部屋の中の家具はその部屋と一緒に動きます。\n面積がわずかに変わることがあります。実行しますか？\n（↩ で元に戻せます）`))return;
+  if(!confirm(`許容 ${tolMm}mm で ${pre.moved} 箇所を揃えます。\n・部屋 ${pre.rooms}\n・窓/ドア ${pre.openings}（壁の上へ乗せ直します）\n${optF.furniture?'・家具 '+(pre.elems-pre.openings)+'（部屋に合わせて動かします）':'・家具は動かしません'}\n\n面積がわずかに変わることがあります。実行しますか？\n（↩ で元に戻せます）`))return;
   snapNow();
-  targets.forEach(f=>alignFloorGeometry(f,tolMm,{}));
+  targets.forEach(f=>alignFloorGeometry(f,tolMm,optF));
   const after=targets.map(f=>floorTotals(f).gross);
   const diff=after.reduce((a,v,i)=>a+(v-before[i]),0);
   pushHistory();render();
-  alert(`${pre.moved} 箇所を揃えました（部屋 ${pre.rooms} / 設備 ${pre.elems}）。\n延床の変化：${diff>=0?'+':''}${f1(diff)}㎡`);
+  alert(`${pre.moved} 箇所を揃えました（部屋 ${pre.rooms} / 窓・ドア ${pre.openings}${optF.furniture?' / 家具 '+(pre.elems-pre.openings):''}）。\n延床の変化：${diff>=0?'+':''}${f1(diff)}㎡`);
 }
 
 /* ================= 建築面積（全階の水平投影の和集合） ================= */
