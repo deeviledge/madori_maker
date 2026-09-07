@@ -31,6 +31,7 @@ function paintPlan(sheet,f,S,opt){
      pt.appendChild(E('line',{x1:0,y1:0,x2:0,y2:6,stroke:ln,'stroke-width':sw}));return pt;};
    defs.appendChild(hp('wHatchOut','#B9C0C7','#6E7982',1.6));   /* \u5916\u58c1 */
    defs.appendChild(hp('wHatchIn','#D6DBE0','#98A3AC',1.2));    /* \u5185\u58c1 */
+   defs.appendChild(hp('noFloor','#FDF2EF','#D98E7A',1.4));     /* 床面積に未算入の範囲 */
    sheet.appendChild(defs);}
   const root=E('g',{transform:`translate(${off},${off})`});sheet.appendChild(root);
   if(view.showGrid&&!view.drawMode){const cand=[view.grid,.25,.5,.91,1];let ds=cand.find(g=>g*S>=6)||1;const gg=E('g',{});
@@ -39,9 +40,25 @@ function paintPlan(sheet,f,S,opt){
     for(let x=0;x<=mr+1e-6;x+=.91)gg.appendChild(E('line',{x1:x*S,y1:0,x2:x*S,y2:mb*S,stroke:'var(--grid-major)','stroke-width':1}));
     for(let y=0;y<=mb+1e-6;y+=.91)gg.appendChild(E('line',{x1:0,y1:y*S,x2:mr*S,y2:y*S,stroke:'var(--grid-major)','stroke-width':1}));
     root.appendChild(gg);}
+  if(view.showArea){
+    const ng=E('g',{'pointer-events':'none'});
+    noFloorRuns(f).forEach(([x,y,w,h])=>ng.appendChild(E('rect',{x:x*S,y:y*S,width:w*S,height:h*S,fill:'url(#noFloor)'})));
+    root.appendChild(ng);
+  }
   if(DM){const ag=E('g',{'pointer-events':'none'});drawAxes(ag,AX,f,S,mr,mb,AXIS_TAG);root.appendChild(ag);}
   const rl=E('g',{}),ol=E('g',{'pointer-events':'none'}),ll=E('g',{'pointer-events':'none'});
   const PT=pl=>pl.map(([x,y])=>`${x*S},${y*S}`).join(' ');
+  /* 下の階を透かして重ねる。階段の上部や吹抜けが「上階の床か下階の床か」を見ながら組める。
+     floors は先頭が最上階なので、ひとつ下は index+1。 */
+  if(view.showUnder){
+    const idx=state.floors.indexOf(f),lower=state.floors[idx+1];
+    if(lower){
+      const ug=E('g',{'pointer-events':'none'});
+      lower.rooms.forEach(r=>ug.appendChild(E('polygon',{points:PT(r.poly),fill:'none',stroke:'#B0895F','stroke-width':1.1,'stroke-dasharray':'6 4',opacity:.75})));
+      ug.appendChild(E('rect',{x:0,y:0,width:lower.footW*S,height:lower.footH*S,fill:'none',stroke:'#B0895F','stroke-width':1.4,'stroke-dasharray':'10 5',opacity:.6}));
+      root.appendChild(ug);
+    }
+  }
   f.rooms.forEach(r=>{const col=SPACE[r.type]?.color||'#34506B';const g=E('g',{class:'obj'});g.dataset.type='room';g.dataset.id=r.id;
     /* 壁を実厚みで見せるモード：塗りは内法ポリゴン、壁芯は破線で併記 */
     const ip=view.showWall?insetPolyByWalls(r,f,view.wallMag||1):r.poly;
@@ -129,7 +146,7 @@ function paintPlan(sheet,f,S,opt){
     const fr=E('g',{'pointer-events':'none'});
     fr.appendChild(E('rect',{x:4.5,y:4.5,width:Wpx-9,height:Hpx-9,fill:'none',stroke:'#2A3A49','stroke-width':1.2}));
     fr.appendChild(E('rect',{x:9.5,y:9.5,width:Wpx-19,height:Hpx-19-titleH,fill:'none',stroke:'#CBD6DF','stroke-width':.7}));
-    drawNorth(fr,Wpx-28,(Hpx-titleH)/2);
+    drawNorth(fr,Wpx-28,(Hpx-titleH)/2,state.settings.northDeg);
     drawTitleBlock(fr,Wpx,Hpx,titleH,f,state);
     sheet.appendChild(fr);
   }
@@ -212,12 +229,15 @@ function axisTag(g,cx,cy,label,col){
   g.appendChild(txt(cx,cy,label,{mono:true,size:8.5,fill:'#54677A',weight:700}));
 }
 
-/* 方位マーク（北は上向き固定） */
-function drawNorth(g,cx,cy){
-  const r=13,col='#2A3A49';
+/* 方位マーク。deg は「図面の上を0°として、北が時計回りに何度の位置にあるか」。
+   建物設定（建物タブ）の“北の向き”で変えられる。 */
+function drawNorth(g,cx,cy,deg){
+  const r=13,col='#2A3A49',d=+deg||0;
   g.appendChild(E('circle',{cx,cy,r,fill:'none',stroke:col,'stroke-width':.9}));
-  g.appendChild(E('polygon',{points:`${cx},${cy-r+1} ${cx-4.5},${cy+r-4} ${cx},${cy+r-8} ${cx+4.5},${cy+r-4}`,fill:col}));
-  g.appendChild(txt(cx,cy-r-8,'N',{mono:true,size:10,fill:col,weight:700}));
+  const rot=E('g',{transform:`rotate(${d} ${cx} ${cy})`});
+  rot.appendChild(E('polygon',{points:`${cx},${cy-r+1} ${cx-4.5},${cy+r-4} ${cx},${cy+r-8} ${cx+4.5},${cy+r-4}`,fill:col}));
+  rot.appendChild(txt(cx,cy-r-8,'N',{mono:true,size:10,fill:col,weight:700}));
+  g.appendChild(rot);
 }
 
 /* 表題欄（シート下端の帯） */
@@ -233,6 +253,25 @@ function drawTitleBlock(g,Wpx,Hpx,h,f,sc){
   g.appendChild(txt(Wpx-pad,y+h*.76,`${mm(f.footW)} × ${mm(f.footH)}　${stamp}`,{anchor:'end',mono:true,size:9.5,fill:'#54677A'}));
 }
 
+/* 建物枠の中で、どの部屋にも覆われていない＝床面積に算入されない範囲を矩形の並びで返す。
+   部屋だけが gross に入る仕様なので、「見えているのに面積に入らない」場所がここで分かる。 */
+const NOFLOOR_CELL=.2;
+function noFloorRuns(f,cell){
+  cell=cell||NOFLOOR_CELL;
+  const runs=[],nx=Math.ceil(f.footW/cell-1e-9),ny=Math.ceil(f.footH/cell-1e-9);
+  for(let j=0;j<ny;j++){
+    const y0=j*cell,h=Math.min(cell,f.footH-y0),cy=y0+h/2;
+    let start=null;
+    for(let i=0;i<=nx;i++){
+      const x0=i*cell,w=Math.min(cell,f.footW-x0),cx=x0+w/2;
+      const bare=(i<nx)&&!f.rooms.some(r=>pointInPoly(cx,cy,r.poly));
+      if(bare){if(start==null)start=x0;}
+      else if(start!=null){runs.push([start,y0,x0-start,h]);start=null;}
+    }
+  }
+  return runs;
+}
+function noFloorArea(f){return noFloorRuns(f).reduce((a,r)=>a+r[2]*r[3],0);}
 /* 部屋名が枠からはみ出さないよう、幅に合わせて文字サイズを詰める。
    日本語は全角1em・半角0.55em として概算する。 */
 function textEm(s){let w=0;for(const ch of String(s))w+=(ch.charCodeAt(0)<128?.55:1);return w||1;}

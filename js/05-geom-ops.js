@@ -185,6 +185,93 @@ function doMerge(bId){const f=F(),a=f.rooms.find(r=>r.id===view.mergeFrom),b=f.r
   f.rooms=f.rooms.filter(r=>r.id!==b.id);
   view.sel={type:'room',id:a.id};
   render();}
+/* 設備の外形と同じ大きさの部屋を作って床面積に算入させる。
+   設備そのものは残すので、絵はそのままで面積だけが増える。 */
+function elemToRoom(e){
+  if(!e)return;
+  const f=F(),label=(ELEM[e.kind]&&ELEM[e.kind].label)||e.kind;
+  const w=(e.rot%2===1)?e.h:e.w, h=(e.rot%2===1)?e.w:e.h;
+  const cx=e.x+e.w/2, cy=e.y+e.h/2;
+  const type=isStairObj(e)?'自宅内部':'自宅内部';
+  const r=room(label,type,cx-w/2,cy-h/2,w,h);
+  snapNow();
+  f.rooms.push(r);
+  view.sel={type:'room',id:r.id};
+  pushHistory();render();
+  alert('「'+label+'」の範囲に部屋を追加しました（'+f1(w*h)+'㎡）。\n用途・名称はインスペクタで変えられます。');
+}
+/* ================= 壁の自動整列（一括微調整） =================
+   手で置いた部屋は、7198と7200のように数ミリだけずれていることが多い。
+   近い座標どうしをまとめて1つの値に寄せることで、壁の食い違いを一括で解消する。
+   面積は変わりうる（ズレが直るぶん動く）ので、実行前に件数を出して確認させる。 */
+
+/* 近い値をクラスタにまとめ、[範囲, 寄せ先] の対応表を作る。
+   建物枠（0・footW・footH）はアンカーとして最優先で寄せ先になる。 */
+function buildSnapMap(vals,anchors,tol){
+  const sorted=vals.slice().sort((a,b)=>a-b);
+  const clusters=[];
+  sorted.forEach(v=>{
+    const c=clusters[clusters.length-1];
+    if(c&&v-c[c.length-1]<=tol)c.push(v);else clusters.push([v]);
+  });
+  return clusters.map(c=>{
+    const anchor=anchors.find(a=>c.some(v=>Math.abs(v-a)<=tol));
+    if(anchor!=null)return{lo:c[0],hi:c[c.length-1],rep:anchor};
+    /* アンカーが無ければ最頻値。同数なら平均に寄せる。 */
+    const cnt=new Map();c.forEach(v=>{const k=v.toFixed(4);cnt.set(k,(cnt.get(k)||0)+1);});
+    let rep=null,best=-1;
+    cnt.forEach((n,k)=>{if(n>best){best=n;rep=+k;}});
+    if(best<=1)rep=c.reduce((a,v)=>a+v,0)/c.length;
+    return{lo:c[0],hi:c[c.length-1],rep};
+  });
+}
+function snapTo(map,v,tol){
+  const m=map.find(c=>v>=c.lo-1e-9&&v<=c.hi+1e-9);
+  if(m&&Math.abs(m.rep-v)<=tol)return m.rep;
+  return v;
+}
+
+/* 1フロアぶんの整列。dry:true なら数えるだけで書き換えない。 */
+function alignFloorGeometry(f,tolMm,opt){
+  opt=opt||{};const tol=Math.max(0,(+tolMm||60)/1000);
+  if(!(tol>0))return{moved:0,rooms:0,elems:0};
+  const xs=[],ys=[];
+  f.rooms.forEach(r=>r.poly.forEach(([x,y])=>{xs.push(x);ys.push(y);}));
+  if(opt.elems!==false)(f.elems||[]).forEach(e=>{xs.push(e.x,e.x+e.w);ys.push(e.y,e.y+e.h);});
+  const ax=[0,f.footW],ay=[0,f.footH];
+  xs.push(...ax);ys.push(...ay);
+  const mx=buildSnapMap(xs,ax,tol),my=buildSnapMap(ys,ay,tol);
+  let moved=0,rooms=0,elems=0;
+  f.rooms.forEach(r=>{let hit=0;
+    const np=r.poly.map(([x,y])=>{
+      const nx=snapTo(mx,x,tol),ny=snapTo(my,y,tol);
+      if(Math.abs(nx-x)>1e-9||Math.abs(ny-y)>1e-9){hit++;}
+      return[nx,ny];});
+    if(hit&&!opt.dry){r.poly=np;}
+    if(hit){moved+=hit;rooms++;}});
+  if(opt.elems!==false)(f.elems||[]).forEach(e=>{
+    const nx=snapTo(mx,e.x,tol),ny=snapTo(my,e.y,tol);
+    if(Math.abs(nx-e.x)>1e-9||Math.abs(ny-e.y)>1e-9){
+      if(!opt.dry){e.x=nx;e.y=ny;}
+      moved++;elems++;}});
+  return{moved,rooms,elems};
+}
+
+/* 画面から呼ぶ入口。allFloors:true なら全階に適用する。 */
+function runAlign(tolMm,allFloors){
+  const targets=allFloors?state.floors:[F()];
+  const pre=targets.reduce((a,f)=>{const d=alignFloorGeometry(f,tolMm,{dry:true});return{moved:a.moved+d.moved,rooms:a.rooms+d.rooms,elems:a.elems+d.elems};},{moved:0,rooms:0,elems:0});
+  if(!pre.moved){alert('ズレは見つかりませんでした（許容 '+tolMm+'mm 以内で寄せる点なし）。');return;}
+  const before=targets.map(f=>floorTotals(f).gross);
+  if(!confirm(`許容 ${tolMm}mm で ${pre.moved} 箇所（部屋 ${pre.rooms} / 設備 ${pre.elems}）を揃えます。\n面積がわずかに変わることがあります。実行しますか？\n（↩ で元に戻せます）`))return;
+  snapNow();
+  targets.forEach(f=>alignFloorGeometry(f,tolMm,{}));
+  const after=targets.map(f=>floorTotals(f).gross);
+  const diff=after.reduce((a,v,i)=>a+(v-before[i]),0);
+  pushHistory();render();
+  alert(`${pre.moved} 箇所を揃えました。\n延床の変化：${diff>=0?'+':''}${f1(diff)}㎡`);
+}
+
 /* ================= 建築面積（全階の水平投影の和集合） ================= */
 function pointInPoly(x,y,pl){let inside=false;
   for(let i=0,j=pl.length-1;i<pl.length;j=i++){const [xi,yi]=pl[i],[xj,yj]=pl[j];

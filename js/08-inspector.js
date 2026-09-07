@@ -54,6 +54,12 @@ function buildInspector(host,o){host.innerHTML='';if(!o)return;const isRoom=view
       host.appendChild(fl2);
       host.appendChild(el('div','refnote','➕➖ チェックした区分にだけ W×D の面積を加減します。例：<b>吹抜</b>は「差し引く×容積対象・登記床」、<b>ポーチ・ピロティ</b>は「加算×建ぺい対象のみ」、<b>PS・納戸</b>は「加算×全部」など。壁芯の部屋面積（壊さない）に対する<b>後からの補正</b>として動きます。'));}}
   /* 参考サイズ・よくある寸法（設備） */
+  if(!isRoom){
+    host.appendChild(subttl('床面積への反映'));
+    host.appendChild(el('div','hint','設備は絵が出るだけで<b>床面積（延床）には入りません</b>。この範囲を床として算入したいときは、同じ大きさの部屋を作ってください。'));
+    const mk=btn('▦ この範囲を部屋にする（床面積に算入）',()=>elemToRoom(o));
+    mk.classList.add('solid');host.appendChild(mk);
+  }
   if(!isRoom&&ELEM[o.kind]){const d=ELEM[o.kind];
     host.appendChild(readout('カテゴリ',(CATLABEL[d.cat]||d.cat)+(d.stair?'（階段）':'')));
     if(d.note)host.appendChild(el('div','refnote','📐 '+d.note));
@@ -109,6 +115,7 @@ function renderFloorSummary(){const box=$('floorSummaryD');if(!box)return;box.in
     '<span class="g-k">自宅専有 / 賃貸専有</span><span class="g-v">'+f1(t.basis.own)+' / '+f1(t.basis.rental)+'㎡</span>'+
     '<span class="g-k">登記床</span><span class="g-v">'+f1(t.basis.reg)+'㎡</span>'+
     '<span class="g-k">この階の建物枠</span><span class="g-v">'+f1(f.footW*f.footH)+'㎡</span>'+
+    '<span class="g-k">枠内で床になっていない</span><span class="g-v">'+f1(noFloorArea(f))+'㎡</span>'+
     (t.elemAdjAny?'<span class="g-k">設備による調整</span><span class="g-v">'+FLAGDEF.filter(([k])=>Math.abs(t.elemAdj[k])>1e-6).map(([k,lb])=>lb+' '+(t.elemAdj[k]>0?'+':'')+f1(t.elemAdj[k])).join(' / ')+'㎡</span>':'')));
   /* 隣地離隔アラート（間取り作業中にも見える） */
   {const reg=landReg(state),ov=setbackOver(f,reg);

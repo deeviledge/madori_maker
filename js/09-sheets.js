@@ -54,9 +54,11 @@ function addElem(kind){const f=F();const[cx,cy]=viewCenter();const d=ELEM[kind];
 function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st=state.settings,f=F();
   box.appendChild(el('div','palcat','表示'));
   const g=el('div','flags');
-  [['snap','スナップ'],['showGrid','目盛'],['showLabels','名称'],['showDim','寸法線'],['showWall','壁'],['drawMode','設計図面'],['vtx','頂点編集']].forEach(([k,lb])=>{
+  [['snap','スナップ'],['showGrid','目盛'],['showLabels','名称'],['showDim','寸法線'],['showWall','壁'],['showArea','未算入'],['showUnder','下階'],['drawMode','設計図面'],['vtx','頂点編集']].forEach(([k,lb])=>{
     const l=document.createElement('label');const c=document.createElement('input');c.type='checkbox';c.checked=!!view[k];c.onchange=()=>{view[k]=c.checked?1:0;render();};l.appendChild(c);l.appendChild(document.createTextNode(lb));g.appendChild(l);});
   box.appendChild(g);
+  box.appendChild(el('div','hint','<b>下階</b>をONにすると、ひとつ下の階の部屋の輪郭が<b style="color:#B0895F">茶色の破線</b>で透けて重なります。階段の上部や吹抜けが「上階の床になるのか、下階の床なのか」を見ながら組めます。最下階では何も出ません。'));
+  box.appendChild(el('div','hint','<b>未算入</b>をONにすると、建物枠の中で<b>どの部屋にも覆われていない範囲</b>（＝床面積に入らない場所）が赤いハッチで出ます。階段や家具などの「設備」は絵が出るだけで床面積には入らないので、床にしたい範囲は必ず<b>部屋</b>を置いてください。'));
   box.appendChild(el('div','hint','<b>設計図面</b>をONにすると、通り芯（X1・Y1…）と符号・外側2段の寸法線（総寸法／通り芯間）・方位マーク・表題欄が付き、壁はソリッド塗り＋隅に柱、部屋名は名称＋畳数の書式になります。見た目だけで面積・法規・収支の数値は変わりません。柱は作図上の表現で、構造計算に基づくものではありません。'));
   box.appendChild(fSelect('グリッド',[['0.1','100 mm'],['0.2','200 mm'],['0.25','250 mm'],['0.455','455 mm (半々間)'],['0.5','500 mm'],['0.91','910 mm (半間)']],String(view.grid),v=>{view.grid=+v;render();}));
   box.appendChild(fSelect('パッドの大きさ',[['S','小'],['M','中'],['L','大']],view.padSize||'S',v=>{view.padSize=v;applyNudgeUI();}));
@@ -64,6 +66,14 @@ function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st
   box.appendChild(fSelect('微調整の移動量',NUDGE_STEPS.map(v=>[String(v),(Math.round(v*10000)/10)+'mm']),String(view.nudgeStep!=null?view.nudgeStep:.05),v=>{view.nudgeStep=+v;applyNudgeUI();}));
   box.appendChild(fSelect('選択ツールバーの位置',SELBAR_POS.map(([v,l])=>[v,l]),view.selbarPos||'left',v=>{view.selbarPos=v;applySelbarPos();renderSelbar();}));
   box.appendChild(fSelect('壁の表示倍率（見た目のみ）',[['1','×1（実寸）'],['1.5','×1.5'],['2','×2（強調）'],['3','×3（しっかり強調）']],String(view.wallMag||1),v=>{view.wallMag=+v;render();}));
+  box.appendChild(el('div','palcat','壁の自動整列'));
+  box.appendChild(el('div','hint','手で置いた部屋は数ミリだけずれていることがあります。近い座標どうしを1つに寄せて、壁の食い違いを一括で直します。実行前に件数を確認でき、<b>↩ で元に戻せます</b>。'));
+  {window._alignTol=window._alignTol||60;
+   box.appendChild(fSelect('許容するズレ',[['30','30mm まで'],['60','60mm まで（標準）'],['100','100mm まで'],['150','150mm まで（大きめ）']],String(window._alignTol),v=>{window._alignTol=+v;buildDispSheet();}));
+   const ag=el('div','miniact');
+   const b1=btn('⌗ この階を整列',()=>runAlign(window._alignTol,false));b1.classList.add('solid');
+   ag.appendChild(b1);ag.appendChild(btn('⌗ 全階を整列',()=>runAlign(window._alignTol,true)));
+   box.appendChild(ag);}
   box.appendChild(el('div','refnote','🧱 外壁＝<b style="color:#1F2E3C">濃紺</b> / 内壁＝<b style="color:#7C8D9C">グレー</b> で色分けしています。実寸だと 100mm壁は表示79%で約3pxしかないため、強調倍率で確認できます（<b>面積・寸法は常に実寸のまま</b>で、拡大しても数値は変わりません）。'));
   /* ↓ 建物設定本体は「建物タブ」へ移行。ここはショートカットのみ */
   box.appendChild(el('div','palcat','建物設定（建物タブに移行）'));
@@ -216,6 +226,14 @@ function buildBuildingSettings(box){const st=state.settings,f=F();const reg=land
   const maxFrame=state.floors.reduce((m,fl)=>Math.max(m,fl.footW*fl.footH),0); /* 建築面積＝最大階の外形 */
   const ft=floorTotals(f);                                       /* この階に実際に配置されている壁芯床 */
   const bcr=la>0?maxFrame/la*100:0,bcrLim=+state.land.bcrLimit||100;
+  /* ===== 方位（北の向き）===== */
+  {const nc=el('div','card');nc.appendChild(el('h3','','方位（北の向き）'));
+   const NDIR=[['0','↑ 上が北'],['45','↗ 右上が北'],['90','→ 右が北'],['135','↘ 右下が北'],['180','↓ 下が北'],['225','↙ 左下が北'],['270','← 左が北'],['315','↖ 左上が北']];
+   const cur=String(Math.round(+st.northDeg||0));
+   nc.appendChild(fSelect('北はどちら',NDIR.concat(NDIR.some(d=>d[0]===cur)?[]:[[cur,cur+'°']]),cur,v=>{st.northDeg=+v;render();buildBuildingSettings(box);}));
+   nc.appendChild(fNum('角度で指定（図面の上が0°・時計回り）',Math.round(+st.northDeg||0),5,v=>{st.northDeg=((Math.round(+v||0)%360)+360)%360;render();}));
+   nc.appendChild(el('div','hint','<b>設計図面</b>表示のときに出る方位マーク（N）の向きに反映されます。図面の見た目だけで、日照・採光の計算には使っていません。'));
+   box.appendChild(nc);}
   /* ===== 建物枠：間口・奥行・面積・離隔を1つのカードに集約 ===== */
   const cf=el('div','card');
   cf.appendChild(el('h3','','建物枠（表示中：'+esc(f.name)+'）<span class="tag">上から見た外形／各階ごと</span>'));

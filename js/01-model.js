@@ -198,18 +198,18 @@ function migrateFinance(g){const d=defFinance();if(!g)return d;const o=Object.as
  if(!g.rateList)o.rateList=d.rateList;
  if(!Array.isArray(o.repairs))o.repairs=defFinance().repairs;
  return o;}
-function seedDesign(){return {settings:{wallOut:.15,wallIn:.10,floorH:2.9,rise:.19},floors:[
+function seedDesign(){return {settings:{wallOut:.15,wallIn:.10,floorH:2.9,rise:.19,northDeg:0},floors:[
  {id:nid('f'),name:'4F',footW:8.19,footH:9.1,rooms:[room('LDK','自宅内部',0,0,5.2,7.7),room('書斎','自宅内部',5.2,2.2,2.99,3.0),room('トイレ','自宅内部',5.2,5.2,1.4,2.5),room('パントリー','自宅内部',6.6,5.2,1.59,2.5),room('ベランダ','ベランダ',5.2,0,2.99,2.2),room('EV','EV',0,7.7,1.6,1.4),room('外廊下','外廊下',1.6,7.7,4.7,1.4),room('外階段','外階段',6.3,7.7,1.89,1.4)],elems:[elem('kitchen',.3,6.9),elem('switchback',3.1,5.4,2,2.2),elem('cupboard',.3,6.1),elem('fridge',2.2,6.1),elem('sofa3',.4,2.6),elem('lowtable',.6,3.7),elem('dining6',2.6,.9),elem('tv',.3,.15),elem('fullwindow',.2,3.2,.2,2.55),elem('desk',5.5,2.4),elem('door',4.5,5.0,.85,.85,{hinge:0})]},
  {id:nid('f'),name:'3F',footW:8.19,footH:9.1,rooms:[room('浴室','自宅内部',0,0,2.73,2.0),room('洗面脱衣','自宅内部',0,2.0,2.73,1.5),room('ランドリー','自宅内部',0,3.5,2.73,1.2),room('ベッドルーム②','自宅内部',0,4.7,2.73,3.0),room('ベッドルーム①','自宅内部',2.73,0,2.73,3.2),room('ホール・階段','自宅内部',2.73,3.2,2.73,2.5),room('玄関','自宅内部',2.73,5.7,2.73,2.0),room('マスターベッドルーム','自宅内部',5.46,0,2.73,4.7),room('WIC','自宅内部',5.46,4.7,2.73,1.5),room('トイレ','自宅内部',5.46,6.2,1.36,1.5),room('納戸','自宅内部',6.82,6.2,1.37,1.5),room('EV','EV',0,7.7,1.6,1.4),room('外廊下','外廊下',1.6,7.7,4.7,1.4),room('外階段','外階段',6.3,7.7,1.89,1.4)],elems:[elem('bath1616',.1,.2),elem('washbasin',.2,2.2),elem('washer',1.8,2.15),elem('switchback',2.83,3.3,2.0,2.3),elem('toilet',5.55,6.3),elem('bedD',5.65,.3),elem('bedS',2.85,.3),elem('bedS',.15,4.9),elem('wic',5.55,4.75,2.5,1.35),elem('shoebox',3.0,7.2)]},
  {id:nid('f'),name:'2F',footW:8.19,footH:9.1,rooms:[room('賃貸201','賃貸',0,0,2.5,7.7),room('賃貸202','賃貸',2.845,0,2.5,7.7),room('賃貸203','賃貸',5.69,0,2.5,7.7),room('EV','EV',0,7.7,1.6,1.4),room('外廊下','外廊下',1.6,7.7,4.7,1.4),room('外階段','外階段',6.3,7.7,1.89,1.4)],elems:[elem('bath1216',.1,.15),elem('minikitchen',.15,7.0),elem('bedS',1.35,2.2),elem('bath1216',2.95,.15),elem('minikitchen',3.0,7.0),elem('bath1216',5.79,.15),elem('minikitchen',5.85,7.0)]},
  {id:nid('f'),name:'1F',footW:8.19,footH:9.1,rooms:[room('賃貸101','賃貸',0,0,2.5,7.7),room('賃貸102','賃貸',2.845,0,2.5,7.7),room('賃貸103','賃貸',5.69,0,2.5,7.7),room('EV','EV',0,7.7,1.6,1.4),room('外廊下','外廊下',1.6,7.7,4.7,1.4),room('外階段','外階段',6.3,7.7,1.89,1.4)],elems:[elem('bath1216',.1,.15),elem('minikitchen',.15,7.0),elem('bath1216',2.95,.15),elem('minikitchen',3.0,7.0),elem('bath1216',5.79,.15),elem('minikitchen',5.85,7.0)]}
 ],activeFloorId:null};}
-function seedInvest(){return {settings:{wallOut:.15,wallIn:.10,floorH:2.9,rise:.19},floors:[
+function seedInvest(){return {settings:{wallOut:.15,wallIn:.10,floorH:2.9,rise:.19,northDeg:0},floors:[
  {id:nid('f'),name:'3F',footW:8.19,footH:9.1,rooms:[room('賃貸301','賃貸',0,0,2.5,7.7),room('賃貸302','賃貸',2.845,0,2.5,7.7),room('賃貸303','賃貸',5.69,0,2.5,7.7),room('EV','EV',0,7.7,1.6,1.4),room('外廊下','外廊下',1.6,7.7,4.7,1.4),room('外階段','外階段',6.3,7.7,1.89,1.4)],elems:[elem('bath1216',.1,.15),elem('minikitchen',.15,7.0),elem('bath1216',2.95,.15),elem('minikitchen',3.0,7.0),elem('bath1216',5.79,.15),elem('minikitchen',5.85,7.0)]},
  {id:nid('f'),name:'2F',footW:8.19,footH:9.1,rooms:[room('賃貸201','賃貸',0,0,2.5,7.7),room('賃貸202','賃貸',2.845,0,2.5,7.7),room('賃貸203','賃貸',5.69,0,2.5,7.7),room('EV','EV',0,7.7,1.6,1.4),room('外廊下','外廊下',1.6,7.7,4.7,1.4),room('外階段','外階段',6.3,7.7,1.89,1.4)],elems:[elem('bath1216',.1,.15),elem('minikitchen',.15,7.0),elem('bath1216',2.95,.15),elem('minikitchen',3.0,7.0),elem('bath1216',5.79,.15),elem('minikitchen',5.85,7.0)]},
  {id:nid('f'),name:'1F',footW:8.19,footH:9.1,rooms:[room('賃貸101','賃貸',0,0,2.5,7.7),room('賃貸102','賃貸',2.845,0,2.5,7.7),room('賃貸103','賃貸',5.69,0,2.5,7.7),room('EV','EV',0,7.7,1.6,1.4),room('外廊下','外廊下',1.6,7.7,4.7,1.4),room('外階段','外階段',6.3,7.7,1.89,1.4)],elems:[elem('bath1216',.1,.15),elem('minikitchen',.15,7.0),elem('bath1216',2.95,.15),elem('minikitchen',3.0,7.0),elem('bath1216',5.79,.15),elem('minikitchen',5.85,7.0)]}
 ],activeFloorId:null};}
-function seedHome(){return {settings:{wallOut:.15,wallIn:.10,floorH:2.9,rise:.19},floors:[
+function seedHome(){return {settings:{wallOut:.15,wallIn:.10,floorH:2.9,rise:.19,northDeg:0},floors:[
  {id:nid('f'),name:'2F',footW:9.1,footH:8.19,rooms:[room('主寝室','自宅内部',0,0,3.64,3.5),room('子供室1','自宅内部',3.64,0,2.73,3.5),room('子供室2','自宅内部',6.37,0,2.73,3.5),room('ホール・階段','自宅内部',3.64,3.5,2.73,2.5),room('WIC','自宅内部',0,3.5,3.64,2.0),room('トイレ','自宅内部',6.37,3.5,1.5,2.0),room('バルコニー','ベランダ',0,6.0,9.1,2.19)],elems:[elem('switchback',3.84,3.7,2.0,2.2),elem('bedD',.3,.3),elem('bedS',3.9,.3),elem('bedS',6.6,.3),elem('wic',.3,3.7,3.0,1.6),elem('toilet',6.5,3.7)]},
  {id:nid('f'),name:'1F',footW:9.1,footH:8.19,rooms:[room('LDK','自宅内部',0,0,5.46,6.0),room('和室','自宅内部',5.46,0,3.64,3.5),room('浴室','自宅内部',5.46,3.5,1.82,2.0),room('洗面脱衣','自宅内部',7.28,3.5,1.82,2.0),room('玄関・ホール','自宅内部',5.46,5.5,3.64,2.69),room('トイレ','自宅内部',0,6.0,1.5,2.19),room('階段','自宅内部',1.5,6.0,2.73,2.19)],elems:[elem('switchback',1.7,6.0,2.0,2.0),elem('kitchen',.3,.3),elem('dining6',2.6,1.2),elem('sofa3',.4,3.5),elem('tv',.3,5.6),elem('bath1616',5.56,3.6),elem('washbasin',7.4,3.6),elem('toilet',.2,6.1),elem('shoebox',7.0,6.0)]}
 ],activeFloorId:null};}
@@ -260,6 +260,8 @@ function defSched(){let m=0;const it=(name,start,dur,cost,cat,task)=>({id:nid('T
   it('入居開始・返済開始',17,1,0,'lease','家賃入金開始。住宅ローン控除の確定申告(翌年)')]};}
 function makeScenario(name){const d=seedDesign();d.activeFloorId=d.floors[0].id;return Object.assign(d,{id:nid('s'),name,land:{W:9.0,D:11.0,areaManual:null,bcrLimit:80,farLimit:300,mode:'rect',poly:null,youto:'近商',road:6.0,bouka:'準防火',kuiki:'市街化',setto:6.0,setback:0.5,saiken:'可',jyoken:'なし',hLimit:0,minArea:0,floorsPlan:4,priceManual:null},price:{landUnitMode:'tsubo',landUnit:250,buildingUnit:105,ancillaryPct:15,perFloor:{},extras:defExtras(),misc:null},finance:defFinance(),loans:defLoans(),activeLoanId:null,tax:defTax(),rent:defRent(),sched:defSched(),exit:defExit()});}
 function migrateScenario(sc){sc.finance=migrateFinance(sc.finance);
+ if(!sc.settings)sc.settings={wallOut:.15,wallIn:.10,floorH:2.9,rise:.19,northDeg:0};
+ if(sc.settings.northDeg==null)sc.settings.northDeg=0;/* 図面の上を0°として、北が時計回りに何度の位置か */
  if(!sc.tax)sc.tax=defTax();
  if(!sc.tax.entity)sc.tax.entity='personal';
  if(sc.tax.corpRate==null)sc.tax.corpRate=34;
@@ -319,7 +321,7 @@ function reseedUid(d){let mx=0;const scan=v=>{String(v).replace(/\d+$/,m2=>mx=Ma
 function initStore(){
   const saved=(typeof loadStore==='function')?null:null; /* loadStoreは後方定義のため起動時に別途復元 */
   store={scenarios:[makeScenario('綱島プランA（木造4階）')],activeId:null,mode:'hybrid'};store.activeId=store.scenarios[0].id;state=store.scenarios[0];
-  view={pxPerM:40,snap:1,grid:.1,showGrid:1,showLabels:1,showDim:1,showWall:1,wallMag:1,drawMode:0,locked:0,mode:'move',nudgePad:0,nudgeStep:.05,nudgePos:'br',padSize:'S',nudgeXY:null,selbarPos:'left',vtx:0,resizeMode:0,sel:null,tab:'plan'};}
+  view={pxPerM:40,snap:1,grid:.1,showGrid:1,showLabels:1,showDim:1,showWall:1,showArea:0,showUnder:0,wallMag:1,drawMode:0,locked:0,mode:'move',nudgePad:0,nudgeStep:.05,nudgePos:'br',padSize:'S',nudgeXY:null,selbarPos:'left',vtx:0,resizeMode:0,sel:null,tab:'plan'};}
 function tryRestore(){const d=loadStore();if(!d)return;try{d.scenarios.forEach(migrateScenario);reseedUid(d);
   store=d;state=store.scenarios.find(x=>x.id===store.activeId)||store.scenarios[0];store.activeId=state.id;
   if(!state.activeFloorId||!state.floors.find(f=>f.id===state.activeFloorId))state.activeFloorId=state.floors[0].id;}catch(e){console.warn('restore failed',e);}}
