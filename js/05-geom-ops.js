@@ -254,45 +254,78 @@ function snapTo(map,v,tol){
   return v;
 }
 
-/* 1フロアぶんの整列。dry:true なら数えるだけで書き換えない。 */
+/* 1フロアぶんの整列。dry:true なら数えるだけで書き換えない。
+   寄せ先は「部屋の頂点＋建物枠」だけから作る。家具の座標で壁が引っぱられないようにするため。
+   設備は独立に寄せず、整列後に位置連れさせる：
+     ・開口部（ドア・窓）は最寄りの壁へ付け直す（壁沿いの位置は保つ）
+     ・部屋の中の家具・階段は、その部屋が動いたぶんだけ平行移動する
+     ・どの部屋にも属さない設備は座標クラスタへ寄せる（従来どおり） */
 function alignFloorGeometry(f,tolMm,opt){
   opt=opt||{};const tol=Math.max(0,(+tolMm||60)/1000);
-  if(!(tol>0))return{moved:0,rooms:0,elems:0};
-  const xs=[],ys=[];
-  f.rooms.forEach(r=>r.poly.forEach(([x,y])=>{xs.push(x);ys.push(y);}));
-  if(opt.elems!==false)(f.elems||[]).forEach(e=>{xs.push(e.x,e.x+e.w);ys.push(e.y,e.y+e.h);});
+  if(!(tol>0))return{moved:0,rooms:0,elems:0,openings:0};
+  /* 数えるだけのときは複製の上で本番と同じ処理を走らせる（見込みと結果を必ず一致させる） */
+  if(opt.dry){
+    const c={id:f.id,name:f.name,footW:f.footW,footH:f.footH,rooms:clone(f.rooms),elems:clone(f.elems||[])};
+    return alignFloorGeometry(c,tolMm,Object.assign({},opt,{dry:false}));
+  }
   const ax=[0,f.footW],ay=[0,f.footH];
-  xs.push(...ax);ys.push(...ay);
+  const xs=ax.slice(),ys=ay.slice();
+  f.rooms.forEach(r=>r.poly.forEach(([x,y])=>{xs.push(x);ys.push(y);}));
   const mx=buildSnapMap(xs,ax,tol),my=buildSnapMap(ys,ay,tol);
-  let moved=0,rooms=0,elems=0;
+
+  /* 整列前に、各設備がどの部屋に乗っているかと、その部屋の基準位置を控える */
+  const follow=(opt.elems===false)?[]:(f.elems||[]).map(e=>{
+    const cx=e.x+e.w/2,cy=e.y+e.h/2;
+    const host=f.rooms.find(r=>pointInPoly(cx,cy,r.poly))||null;
+    const hb=host?bbox(host.poly):null;
+    return{e,opening:!!(ELEM[e.kind]&&ELEM[e.kind].opening),host,hx:hb?hb.x:0,hy:hb?hb.y:0};});
+
+  let moved=0,rooms=0,elems=0,openings=0;
   f.rooms.forEach(r=>{let hit=0;
     const np=r.poly.map(([x,y])=>{
       const nx=snapTo(mx,x,tol),ny=snapTo(my,y,tol);
-      if(Math.abs(nx-x)>1e-9||Math.abs(ny-y)>1e-9){hit++;}
+      if(Math.abs(nx-x)>1e-9||Math.abs(ny-y)>1e-9)hit++;
       return[nx,ny];});
-    if(hit&&!opt.dry){r.poly=np;}
-    if(hit){moved+=hit;rooms++;}});
-  if(opt.elems!==false)(f.elems||[]).forEach(e=>{
-    const nx=snapTo(mx,e.x,tol),ny=snapTo(my,e.y,tol);
-    if(Math.abs(nx-e.x)>1e-9||Math.abs(ny-e.y)>1e-9){
-      if(!opt.dry){e.x=nx;e.y=ny;}
-      moved++;elems++;}});
-  return{moved,rooms,elems};
+    if(hit){r.poly=np;moved+=hit;rooms++;}});
+
+  follow.forEach(a=>{
+    const e=a.e,x0=e.x,y0=e.y;
+    if(a.opening){
+      snapOpening(e,f);                       /* 壁に乗っているので壁へ付け直す */
+    }else if(a.host){
+      const hb=bbox(a.host.poly);             /* 部屋が動いたぶんだけ一緒に動かす */
+      e.x+=hb.x-a.hx;e.y+=hb.y-a.hy;
+    }else{
+      e.x=snapTo(mx,e.x,tol);e.y=snapTo(my,e.y,tol);
+    }
+    if(Math.abs(e.x-x0)>1e-9||Math.abs(e.y-y0)>1e-9){moved++;elems++;if(a.opening)openings++;}
+  });
+  return{moved,rooms,elems,openings};
 }
 
+/* 開口部だけを壁へ乗せ直す入口。 */
+function runSnapOpenings(allFloors){
+  const targets=allFloors?state.floors:[F()];
+  snapNow();
+  const n=targets.reduce((a,f)=>a+snapAllOpenings(f),0);
+  if(!n){alert('壁からずれている開口部は見つかりませんでした。');return;}
+  pushHistory();render();
+  alert(n+' 箇所の開口部を壁に合わせました。（↩ で元に戻せます）');
+}
 /* 画面から呼ぶ入口。allFloors:true なら全階に適用する。 */
 function runAlign(tolMm,allFloors){
   const targets=allFloors?state.floors:[F()];
-  const pre=targets.reduce((a,f)=>{const d=alignFloorGeometry(f,tolMm,{dry:true});return{moved:a.moved+d.moved,rooms:a.rooms+d.rooms,elems:a.elems+d.elems};},{moved:0,rooms:0,elems:0});
+  const pre=targets.reduce((a,f)=>{const d=alignFloorGeometry(f,tolMm,{dry:true});
+    return{moved:a.moved+d.moved,rooms:a.rooms+d.rooms,elems:a.elems+d.elems,openings:a.openings+d.openings};},{moved:0,rooms:0,elems:0,openings:0});
   if(!pre.moved){alert('ズレは見つかりませんでした（許容 '+tolMm+'mm 以内で寄せる点なし）。');return;}
   const before=targets.map(f=>floorTotals(f).gross);
-  if(!confirm(`許容 ${tolMm}mm で ${pre.moved} 箇所（部屋 ${pre.rooms} / 設備 ${pre.elems}）を揃えます。\n面積がわずかに変わることがあります。実行しますか？\n（↩ で元に戻せます）`))return;
+  if(!confirm(`許容 ${tolMm}mm で ${pre.moved} 箇所を揃えます。\n・部屋 ${pre.rooms}\n・設備 ${pre.elems}（うち壁に付け直す開口部 ${pre.openings}）\n\n開口部は壁と一緒に動き、部屋の中の家具はその部屋と一緒に動きます。\n面積がわずかに変わることがあります。実行しますか？\n（↩ で元に戻せます）`))return;
   snapNow();
   targets.forEach(f=>alignFloorGeometry(f,tolMm,{}));
   const after=targets.map(f=>floorTotals(f).gross);
   const diff=after.reduce((a,v,i)=>a+(v-before[i]),0);
   pushHistory();render();
-  alert(`${pre.moved} 箇所を揃えました。\n延床の変化：${diff>=0?'+':''}${f1(diff)}㎡`);
+  alert(`${pre.moved} 箇所を揃えました（部屋 ${pre.rooms} / 設備 ${pre.elems}）。\n延床の変化：${diff>=0?'+':''}${f1(diff)}㎡`);
 }
 
 /* ================= 建築面積（全階の水平投影の和集合） ================= */

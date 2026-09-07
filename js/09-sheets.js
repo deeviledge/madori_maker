@@ -49,6 +49,9 @@ function addRoom(type){const f=F();const[cx,cy]=viewCenter();const w=type==='EV'
   f.rooms.push(r);view.sel={type:'room',id:r.id};closeSheet();switchTab('plan');render();}
 function addElem(kind){const f=F();const[cx,cy]=viewCenter();const d=ELEM[kind];
   const e=elem(kind,snap(Math.max(0,cx-d.w/2)),snap(Math.max(0,cy-d.h/2)));
+  /* ドア・窓は置いた場所の近くの壁へ自動で乗せる（向きもその壁に合わせる）。
+     画面中央から少し離れていても拾えるよう、追加のときだけ探索範囲を広げる。 */
+  if(d&&d.opening)snapOpening(e,f,3.0);
   f.elems.push(e);view.sel={type:'elem',id:e.id};closeSheet();switchTab('plan');render();}
 /* 表示・共通設定 */
 function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st=state.settings,f=F();
@@ -67,13 +70,18 @@ function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st
   box.appendChild(fSelect('選択ツールバーの位置',SELBAR_POS.map(([v,l])=>[v,l]),view.selbarPos||'left',v=>{view.selbarPos=v;applySelbarPos();renderSelbar();}));
   box.appendChild(fSelect('壁の表示倍率（見た目のみ）',[['1','×1（実寸）'],['1.5','×1.5'],['2','×2（強調）'],['3','×3（しっかり強調）']],String(view.wallMag||1),v=>{view.wallMag=+v;render();}));
   box.appendChild(el('div','palcat','壁の自動整列'));
-  box.appendChild(el('div','hint','手で置いた部屋は数ミリだけずれていることがあります。近い座標どうしを1つに寄せて、壁の食い違いを一括で直します。実行前に件数を確認でき、<b>↩ で元に戻せます</b>。'));
+  box.appendChild(el('div','hint','手で置いた部屋は数ミリだけずれていることがあります。近い座標どうしを1つに寄せて、壁の食い違いを一括で直します。<br><b>設備も位置連れします</b>：ドア・窓は動いた壁へ付け直し（壁沿いの位置はそのまま）、部屋の中の家具・階段はその部屋と一緒に動きます。実行前に件数を確認でき、<b>↩ で元に戻せます</b>。'));
   {window._alignTol=window._alignTol||60;
    box.appendChild(fSelect('許容するズレ',[['30','30mm まで'],['60','60mm まで（標準）'],['100','100mm まで'],['150','150mm まで（大きめ）']],String(window._alignTol),v=>{window._alignTol=+v;buildDispSheet();}));
    const ag=el('div','miniact');
    const b1=btn('⌗ この階を整列',()=>runAlign(window._alignTol,false));b1.classList.add('solid');
    ag.appendChild(b1);ag.appendChild(btn('⌗ 全階を整列',()=>runAlign(window._alignTol,true)));
-   box.appendChild(ag);}
+   box.appendChild(ag);
+   const og=el('div','miniact');
+   og.appendChild(btn('🚪 開口部を壁に合わせる',()=>runSnapOpenings(false)));
+   og.appendChild(btn('🚪 全階の開口部',()=>runSnapOpenings(true)));
+   box.appendChild(og);
+   box.appendChild(el('div','hint','ドア・窓だけを最寄りの壁へ乗せ直します（壁沿いの位置と向きも合わせます）。整列しなくても単独で使えます。'));}
   box.appendChild(el('div','refnote','🧱 外壁＝<b style="color:#1F2E3C">濃紺</b> / 内壁＝<b style="color:#7C8D9C">グレー</b> で色分けしています。実寸だと 100mm壁は表示79%で約3pxしかないため、強調倍率で確認できます（<b>面積・寸法は常に実寸のまま</b>で、拡大しても数値は変わりません）。'));
   /* ↓ 建物設定本体は「建物タブ」へ移行。ここはショートカットのみ */
   box.appendChild(el('div','palcat','建物設定（建物タブに移行）'));

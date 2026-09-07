@@ -62,12 +62,24 @@ function magnet(nx,ny,w,h,selfId){if(!view.snap)return[nx,ny];const f=F(),tol=.0
   let bx=nx,bdx=tol;xs.forEach(x=>{[x,x-w].forEach(c=>{const d=Math.abs(c-nx);if(d<bdx){bdx=d;bx=c;}});});
   let by=ny,bdy=tol;ys.forEach(y=>{[y,y-h].forEach(c=>{const d=Math.abs(c-ny);if(d<bdy){bdy=d;by=c;}});});
   return[Math.max(0,Math.round(bx*1000)/1000),Math.max(0,Math.round(by*1000)/1000)];}
-function snapOpening(e){const f=F(),cx=e.x+e.w/2,cy=e.y+e.h/2;let best=null,bd=.45;
+/* 開口部を最寄りの壁へ付け直す。壁と直交する方向だけ動かすので、壁沿いの位置は保たれる。
+   fl を渡せば表示中でない階にも使える（自動整列から呼ぶため）。 */
+function snapOpening(e,fl,maxDist){const f=fl||F(),cx=e.x+e.w/2,cy=e.y+e.h/2;let best=null,bd=(maxDist>0?maxDist:.45);
   const consider=(px,py,axis)=>{const d=axis==='v'?Math.abs(px-cx):Math.abs(py-cy);if(d<bd){bd=d;best={px,py,axis};}};
   f.rooms.forEach(r=>edges(r.poly).forEach(([p,q])=>{const vert=Math.abs(p[0]-q[0])<.02,hor=Math.abs(p[1]-q[1])<.02;
     if(vert){const y0=Math.min(p[1],q[1]),y1=Math.max(p[1],q[1]);if(cy>y0-.1&&cy<y1+.1)consider(p[0],cy,'v');}
     if(hor){const x0=Math.min(p[0],q[0]),x1=Math.max(p[0],q[0]);if(cx>x0-.1&&cx<x1+.1)consider(cx,p[1],'h');}}));
-  if(best){if(best.axis==='v'){e.x=best.px-e.w/2;if(e.rot%2===0)e.rot=1;}else{e.y=best.py-e.h/2;if(e.rot%2===1)e.rot=0;}}}
+  if(best){if(best.axis==='v'){e.x=best.px-e.w/2;if(e.rot%2===0)e.rot=1;}else{e.y=best.py-e.h/2;if(e.rot%2===1)e.rot=0;}}
+  return !!best;}
+/* この階の開口部をまとめて壁へ乗せ直す。動いた数を返す。 */
+function snapAllOpenings(f,maxDist){
+  f=f||F();let n=0;
+  (f.elems||[]).forEach(e=>{
+    if(!(ELEM[e.kind]&&ELEM[e.kind].opening))return;
+    const x0=e.x,y0=e.y,r0=e.rot;
+    snapOpening(e,f,maxDist);
+    if(Math.abs(e.x-x0)>1e-9||Math.abs(e.y-y0)>1e-9||e.rot!==r0)n++;});
+  return n;}
 /* 背景タップで選択解除・1本指パン・ピンチズーム */
 const ptrs=new Map();let pinch=null,pan=null;
 sheet.addEventListener('pointerdown',ev=>{ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
