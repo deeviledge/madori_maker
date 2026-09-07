@@ -123,6 +123,20 @@ function paintPlan(sheet,f,S,opt){
     g.appendChild(inner);if(interactive)g.addEventListener('pointerdown',ev=>startMove(ev,'elem',e.id));eg.appendChild(g);});
   root.appendChild(eg);
   root.appendChild(ll);   /* 部屋名は家具・建具より前面へ（実際の間取り図と同じ重ね順） */
+  /* 壁モード：掴める壁の線を薄く強調し、ドラッグ中の壁は濃く出す */
+  if(interactive&&view.mode==='wall'&&!view.locked){
+    const wg=E('g',{'pointer-events':'none'});
+    f.rooms.forEach(r=>edges(r.poly).forEach(([p,q])=>
+      wg.appendChild(E('line',{x1:p[0]*S,y1:p[1]*S,x2:q[0]*S,y2:q[1]*S,
+        stroke:'var(--accent)','stroke-width':3,opacity:.28,'stroke-linecap':'round'}))));
+    if(drag&&drag.mode==='wall'){
+      const c=drag.cur*S;
+      wg.appendChild(drag.ai===0
+        ?E('line',{x1:c,y1:-.3*S,x2:c,y2:(mb+.3)*S,stroke:'var(--accent)','stroke-width':2.5})
+        :E('line',{x1:-.3*S,y1:c,x2:(mr+.3)*S,y2:c,stroke:'var(--accent)','stroke-width':2.5}));
+    }
+    root.appendChild(wg);
+  }
   const o=interactive?selObj():null;
   /* 設備を選んでいるとき、「部屋にする範囲」を破線でプレビューする */
   if(o&&interactive&&view.sel.type==='elem'&&window._elemRoomPart&&window._elemRoomPart!=='all'){

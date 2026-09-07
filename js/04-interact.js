@@ -13,7 +13,41 @@ function hitsAt(mx,my){const f=F(),out=[];
 function evToModel(ev){const S=view.pxPerM,r=sheet.getBoundingClientRect();
   const off=1.3*.7*S;
   return[(ev.clientX-r.left-off)/S,(ev.clientY-r.top-off)/S];}
+/* タップ位置に最も近い壁の線を探す。戻り値 {ai:0=縦/1=横, coord} */
+function nearestWallLine(mx,my,f,tolM){
+  f=f||F();let best=null,bd=(tolM!=null?tolM:.35);
+  const consider=(ai,coord,lo,hi)=>{
+    const at=ai===0?mx:my, along=ai===0?my:mx;
+    if(along<lo-.15||along>hi+.15)return;
+    const d=Math.abs(coord-at);if(d<bd){bd=d;best={ai,coord};}};
+  f.rooms.forEach(r=>edges(r.poly).forEach(([p,q])=>{
+    if(Math.abs(p[0]-q[0])<.02)consider(0,p[0],Math.min(p[1],q[1]),Math.max(p[1],q[1]));
+    if(Math.abs(p[1]-q[1])<.02)consider(1,p[1],Math.min(p[0],q[0]),Math.max(p[0],q[0]));}));
+  return best;}
+/* 壁を掴んで動かす。その座標を共有している頂点をまとめて動かすので、
+   両側の空間が同時に伸縮する（壁厚は壁芯から自動計算されるので追従する）。 */
+function startWallDrag(ev){
+  if(view.locked)return false;
+  const f=F(),[mx,my]=evToModel(ev);
+  const w=nearestWallLine(mx,my,f,.35);
+  if(!w)return false;
+  ev.stopPropagation();ev.preventDefault();
+  const targets=[];
+  f.rooms.forEach(r=>r.poly.forEach(v=>{if(Math.abs(v[w.ai]-w.coord)<.02)targets.push(v);}));
+  if(!targets.length)return false;
+  /* その壁に乗っている開口部は、壁と同じだけ運ぶ（大きく動かしても置き去りにしない） */
+  const opens=[];
+  (f.elems||[]).forEach(e=>{
+    if(!(ELEM[e.kind]&&ELEM[e.kind].opening))return;
+    const c=(w.ai===0?e.x+e.w/2:e.y+e.h/2);
+    if(Math.abs(c-w.coord)<.25)opens.push({e,off:(w.ai===0?e.x:e.y)-w.coord});});
+  drag={mode:'wall',ai:w.ai,coord:w.coord,cur:w.coord,targets,opens,
+        o:(w.ai===0?mx:my),sx:ev.clientX,sy:ev.clientY,moved:0};
+  render();
+  window.addEventListener('pointermove',onDrag);window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
+  return true;}
 function startMove(ev,type,id){if(view.locked)return;
+  if(view.mode==='wall'){startWallDrag(ev);return;}   /* 壁モード中は部屋そのものは動かさない */
   /* 同じ場所を重ねてタップしたときは、重なっている別のオブジェクトに順に切り替える */
   if(!view.mergeFrom&&!drag){try{const [mx,my]=evToModel(ev);const hs=hitsAt(mx,my);
     if(hs.length>1){const ci=hs.findIndex(h=>view.sel&&h.type===view.sel.type&&h.id===view.sel.id);
@@ -31,7 +65,20 @@ function startResize(ev,o,dir){if(view.locked)return;ev.stopPropagation();ev.pre
   window.addEventListener('pointermove',onDrag);window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);}
 function startVertex(ev,o,vi){if(view.locked)return;ev.stopPropagation();ev.preventDefault();drag={mode:'vertex',vi,sx:ev.clientX,sy:ev.clientY,vx:o.poly[vi][0],vy:o.poly[vi][1]};
   window.addEventListener('pointermove',onDrag);window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);}
-function onDrag(ev){if(!drag)return;const o=selObj();if(!o)return;const S=view.pxPerM;
+function onDrag(ev){if(!drag)return;
+  if(drag.mode==='wall'){
+    if(Math.abs(ev.clientX-drag.sx)+Math.abs(ev.clientY-drag.sy)>4)drag.moved=1;
+    const [mx,my]=evToModel(ev);
+    const nc=Math.max(0,snap(drag.coord+((drag.ai===0?mx:my)-drag.o)));
+    const prev=drag.cur;
+    const put=c=>{drag.targets.forEach(v=>{v[drag.ai]=c;});
+      (drag.opens||[]).forEach(o=>{if(drag.ai===0)o.e.x=c+o.off;else o.e.y=c+o.off;});};
+    put(nc);
+    const bad=F().rooms.some(r=>{const b=bbox(r.poly);return b.w<.3||b.h<.3;});
+    if(bad)put(prev);
+    else{drag.cur=nc;showTip(ev,(drag.ai===0?'X ':'Y ')+mm(nc)+' mm');}
+    renderSheet();return;}
+  const o=selObj();if(!o)return;const S=view.pxPerM;
   const dx=(ev.clientX-drag.sx)/S,dy=(ev.clientY-drag.sy)/S;
   if(Math.abs(ev.clientX-drag.sx)+Math.abs(ev.clientY-drag.sy)>4)drag.moved=1;
   if(drag.mode==='move'){let nx=Math.max(0,snap(drag.ox+dx)),ny=Math.max(0,snap(drag.oy+dy));
@@ -50,8 +97,21 @@ function onDrag(ev){if(!drag)return;const o=selObj();if(!o)return;const S=view.p
     showTip(ev,`${mm(nw)} × ${mm(nh)}`);}
   else if(drag.mode==='vertex'){o.poly[drag.vi][0]=Math.max(0,snap(drag.vx+dx));o.poly[drag.vi][1]=Math.max(0,snap(drag.vy+dy));showTip(ev,`${mm(o.poly[drag.vi][0])} , ${mm(o.poly[drag.vi][1])}`);}
   renderSheet();}
-function endDrag(){if(!drag)return;const o=selObj();
+function endDrag(){if(!drag)return;
+  if(drag.mode==='wall'){
+    const f=F();
+    /* 壁が動いたので、その壁に乗っている開口部を付け直す */
+    (f.elems||[]).forEach(e=>{if(ELEM[e.kind]&&ELEM[e.kind].opening)snapOpening(e,f);});
+    const moved=drag.moved;drag=null;hideTip();
+    window.removeEventListener('pointermove',onDrag);window.removeEventListener('pointerup',endDrag);window.removeEventListener('pointercancel',endDrag);
+    if(moved)pushHistory();
+    render();return;}
+  const o=selObj();
   if(o&&view.sel.type==='elem'&&ELEM[o.kind]?.opening&&drag.mode==='move')snapOpening(o);
+  /* 部屋を動かし終えたら、隣の壁芯へそろえる。壁厚は壁芯から自動計算されるので、
+     そろえた時点で「壁1枚で仕切られた状態」になる。 */
+  if(o&&view.sel.type==='room'&&drag.moved&&(drag.mode==='move'||drag.mode==='resize')&&view.roomSnap!==0)
+    snapRoomToNeighbors(o,F(),.12);
   drag=null;hideTip();
   window.removeEventListener('pointermove',onDrag);window.removeEventListener('pointerup',endDrag);window.removeEventListener('pointercancel',endDrag);
   render();}
@@ -82,7 +142,10 @@ function snapAllOpenings(f,maxDist){
   return n;}
 /* 背景タップで選択解除・1本指パン・ピンチズーム */
 const ptrs=new Map();let pinch=null,pan=null;
-sheet.addEventListener('pointerdown',ev=>{ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+sheet.addEventListener('pointerdown',ev=>{
+  /* 壁モードは、部屋の上でなくても壁を掴めるようにする */
+  if(view.mode==='wall'&&!view.locked&&!drag&&ptrs.size===0){if(startWallDrag(ev))return;}
+  ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
   if(ptrs.size===2){drag=null;pan=null;hideTip();const a=[...ptrs.values()];pinch={d0:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),s0:view.pxPerM};}
   if(ptrs.size===1&&!ev.target.closest('.obj')&&!ev.target.dataset.dir&&ev.target.dataset.vi==null){
     pan={sx:ev.clientX,sy:ev.clientY,sl:stage.scrollLeft,st:stage.scrollTop,moved:0};}});

@@ -24,9 +24,10 @@ function toggleLock(){
   else{view.locked=0;if(view._prevDraw!=null)view.drawMode=view._prevDraw;}
   applyLockUI();render();}
 $('lockBtn').onclick=toggleLock;
-const MODES=[['move','✋ 移動'],['resize','⤢ 変形'],['nudge','✥ 微調']];
+const MODES=[['move','✋ 移動'],['resize','⤢ 変形'],['nudge','✥ 微調'],['wall','▤ 壁']];
 function setEditMode(m){cancelMerge();/* 合体待ちのまま別モードへ行かない */
-  view.mode=m;view.resizeMode=(m==='resize')?1:0;view.nudgePad=(m==='nudge')?1:0;render();}
+  view.mode=m;view.resizeMode=(m==='resize')?1:0;view.nudgePad=(m==='nudge')?1:0;
+  render();}
 function cycleMode(){const i=MODES.findIndex(x=>x[0]===(view.mode||'move'));setEditMode(MODES[(i+1)%MODES.length][0]);}
 $('sbMode').onclick=cycleMode;
 $('ndStep').onclick=cycleNudgeStep;

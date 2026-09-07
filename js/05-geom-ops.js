@@ -314,6 +314,49 @@ function alignFloorGeometry(f,tolMm,opt){
   return{moved,rooms,elems,openings};
 }
 
+/* ================= 空間どうしを壁芯でつなぐ =================
+   このアプリは「部屋のポリゴン＝壁芯（壁の中心線）」というモデルなので、
+   隣り合う部屋が同じ座標を共有していれば、その間の壁は自動的に1枚ぶんの厚みになる。
+   逆に数十mmずれていると壁が二重になったり隙間が空く。置いた直後に寄せてしまう。 */
+function snapRoomToNeighbors(r,f,tolM){
+  f=f||F();const tol=(tolM!=null?tolM:.45);
+  if(!(tol>0))return false;
+  const xs=[0,f.footW],ys=[0,f.footH];
+  f.rooms.forEach(o=>{if(o===r)return;o.poly.forEach(([x,y])=>{xs.push(x);ys.push(y);});});
+  const near=(arr,v)=>{let best=v,bd=tol;arr.forEach(a=>{const d=Math.abs(a-v);if(d<bd){bd=d;best=a;}});return best;};
+  const b=bbox(r.poly);
+  const x0=near(xs,b.x),x1=near(xs,b.x+b.w),y0=near(ys,b.y),y1=near(ys,b.y+b.h);
+  if(x1-x0<.3||y1-y0<.3)return false;          /* 潰れてしまうなら寄せない */
+  if(Math.abs(x0-b.x)<1e-9&&Math.abs(x1-(b.x+b.w))<1e-9&&
+     Math.abs(y0-b.y)<1e-9&&Math.abs(y1-(b.y+b.h))<1e-9)return false;
+  /* 4辺の寄せ先へ線形に変換する（L字などの多角形でも形を保ったまま合う） */
+  const sx=b.w>1e-9?(x1-x0)/b.w:1, sy=b.h>1e-9?(y1-y0)/b.h:1;
+  r.poly=r.poly.map(([x,y])=>[x0+(x-b.x)*sx, y0+(y-b.y)*sy]);
+  return true;
+}
+/* ================= 外壁（建物枠）を間取りに合わせる =================
+   整列は「部屋を建物枠に寄せる」向きなので、その逆＝枠を実際の間取りの外周へ
+   合わせる操作を用意する。建築面積・建ぺい率が動くため必ず確認を挟む。 */
+function fitFrameToRooms(f){
+  if(!f.rooms||!f.rooms.length)return null;
+  let mx=0,my=0;
+  f.rooms.forEach(r=>{const b=bbox(r.poly);mx=Math.max(mx,b.x+b.w);my=Math.max(my,b.y+b.h);});
+  if(!(mx>0&&my>0))return null;
+  return{w:mx,h:my};
+}
+function runFitFrame(allFloors){
+  const targets=allFloors?state.floors:[F()];
+  const plan=targets.map(f=>({f,to:fitFrameToRooms(f)}))
+    .filter(p=>p.to&&(Math.abs(p.to.w-p.f.footW)>1e-6||Math.abs(p.to.h-p.f.footH)>1e-6));
+  if(!plan.length){alert('建物枠（外壁）は、すでに間取りの外周と一致しています。');return;}
+  const msg=plan.map(p=>`・${p.f.name}　${mm(p.f.footW)}×${mm(p.f.footH)} → ${mm(p.to.w)}×${mm(p.to.h)}`).join('\n');
+  const before=builtArea();
+  if(!confirm(`建物枠（外壁）を間取りの外周に合わせます。\n\n${msg}\n\n建築面積・建ぺい率が変わります。実行しますか？\n（↩ で元に戻せます）`))return;
+  snapNow();
+  plan.forEach(p=>{p.f.footW=p.to.w;p.f.footH=p.to.h;});
+  pushHistory();render();
+  alert(`建物枠を合わせました（${plan.length}階）。\n建築面積：${f1(before)}㎡ → ${f1(builtArea())}㎡`);
+}
 /* 開口部だけを壁へ乗せ直す入口。 */
 function runSnapOpenings(allFloors){
   const targets=allFloors?state.floors:[F()];

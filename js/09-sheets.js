@@ -4,7 +4,7 @@
 /* ================= シート（ボトムシート）管理 ================= */
 const SHEETS=['addSheet','inspSheet','dispSheet','menuSheet','floorSheet','exportSheet','varSheet'];
 function openSheet(id){SHEETS.forEach(s=>$(s).classList.toggle('open',s===id));$('backdrop').classList.add('show');
-  if(id==='addSheet')buildAddSheet();
+  if(id==='addSheet'){addMode=null;buildAddSheet();}
   if(id==='dispSheet')buildDispSheet();
   if(id==='menuSheet')buildMenuSheet();
   if(id==='exportSheet')buildExportSheet();
@@ -15,7 +15,7 @@ function closeSheet(){SHEETS.forEach(s=>$(s).classList.remove('open'));$('backdr
 $('backdrop').onclick=closeSheet;
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheet);
 /* 追加パレット */
-let addMode='room';
+let addMode=null;   /* 追加シートを開くたびに未選択へ戻し、空間か設備を必ず選ばせる */
 function buildAddSheet(){const box=$('addSheetBody');box.innerHTML='';
   const seg=el('div','segrow');
   const b1=document.createElement('button');b1.textContent='🏠 空間を追加（部屋・区画）';
@@ -23,6 +23,15 @@ function buildAddSheet(){const box=$('addSheetBody');box.innerHTML='';
   b1.className=addMode==='room'?'on':'';b2.className=addMode==='elem'?'on':'';
   b1.onclick=()=>{addMode='room';buildAddSheet();};b2.onclick=()=>{addMode='elem';buildAddSheet();};
   seg.appendChild(b1);seg.appendChild(b2);box.appendChild(seg);
+  if(!addMode){
+    /* どちらかを選ぶまで先へ進ませない。「面積に入るもの／入らないもの」の区別を
+       ここで必ず意識させたいため。 */
+    box.appendChild(el('div','hint','<b>まず、どちらを置くか選んでください。</b>'));
+    box.appendChild(el('div','grid2',
+      '<span class="g-k">🏠 空間</span><span class="g-v" style="text-align:left">床面積に<b>入る</b>。壁で仕切られた部屋・区画</span>'+
+      '<span class="g-k">🛋 設備・家具</span><span class="g-v" style="text-align:left">床面積に<b>入らない</b>。空間の上に置くシンボル</span>'));
+    return;
+  }
   if(addMode==='room'){
     box.appendChild(el('div','hint','空間＝面積計算の対象になる「部屋・区画」。用途区分で自宅/賃貸/共用などの算入が決まります。'));
     box.appendChild(el('div','palcat','用途区分を選んで追加'));
@@ -46,7 +55,10 @@ function viewCenter(){const f=F();const S=view.pxPerM,off=1.3*.7*S;
   return[Math.max(.5,Math.min(f.footW-1,cx)),Math.max(.5,Math.min(f.footH-1,cy))];}
 function addRoom(type){const f=F();const[cx,cy]=viewCenter();const w=type==='EV'?1.6:(type==='外階段'?1.8:3),h=type==='EV'?1.4:(type==='外階段'?1.4:3);
   const r=room(type==='自宅内部'?'新規部屋':type,type,snap(Math.max(0,cx-w/2)),snap(Math.max(0,cy-h/2)),w,h);
-  f.rooms.push(r);view.sel={type:'room',id:r.id};closeSheet();switchTab('plan');render();}
+  f.rooms.push(r);
+  /* 置いた場所の近くに壁があれば、その壁芯にそろえる（壁が二重にならないように） */
+  if(view.roomSnap!==0)snapRoomToNeighbors(r,f,.45);
+  view.sel={type:'room',id:r.id};closeSheet();switchTab('plan');render();}
 function addElem(kind){const f=F();const[cx,cy]=viewCenter();const d=ELEM[kind];
   const e=elem(kind,snap(Math.max(0,cx-d.w/2)),snap(Math.max(0,cy-d.h/2)));
   /* ドア・窓は置いた場所の近くの壁へ自動で乗せる（向きもその壁に合わせる）。
@@ -87,6 +99,12 @@ function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st
    og.appendChild(btn('🚪 開口部を壁に合わせる',()=>runSnapOpenings(false)));
    og.appendChild(btn('🚪 全階の開口部',()=>runSnapOpenings(true)));
    box.appendChild(og);
+   const fg=el('div','miniact');
+   fg.appendChild(btn('▢ 外壁を間取りに合わせる',()=>runFitFrame(false)));
+   fg.appendChild(btn('▢ 全階の外壁',()=>runFitFrame(true)));
+   box.appendChild(fg);
+   box.appendChild(el('div','hint','<b>外壁</b>は建物枠のこと。整列は「部屋を枠に寄せる」向きなので、その逆に<b>枠を実際の間取りの外周へ合わせたい</b>ときはこちら。建築面積・建ぺい率が変わるので、実行前に前後の寸法を出します。'));
+   box.appendChild(chk('空間を置いたら隣の壁芯に自動でそろえる',view.roomSnap!==0,v=>{view.roomSnap=v?1:0;}));
    box.appendChild(el('div','hint','ドア・窓だけを最寄りの壁へ乗せ直します（壁沿いの位置と向きも合わせます）。整列しなくても単独で使えます。'));}
   box.appendChild(el('div','refnote','🧱 外壁＝<b style="color:#1F2E3C">濃紺</b> / 内壁＝<b style="color:#7C8D9C">グレー</b> で色分けしています。実寸だと 100mm壁は表示79%で約3pxしかないため、強調倍率で確認できます（<b>面積・寸法は常に実寸のまま</b>で、拡大しても数値は変わりません）。'));
   /* ↓ 建物設定本体は「建物タブ」へ移行。ここはショートカットのみ */
