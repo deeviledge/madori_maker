@@ -34,12 +34,19 @@ function paintPlan(sheet,f,S,opt){
    defs.appendChild(hp('noFloor','#FDF2EF','#D98E7A',1.4));     /* 床面積に未算入の範囲 */
    sheet.appendChild(defs);}
   const root=E('g',{transform:`translate(${off},${off})`});sheet.appendChild(root);
-  if(view.showGrid&&!view.drawMode){const cand=[view.grid,.25,.5,.91,1];let ds=cand.find(g=>g*S>=6)||1;const gg=E('g',{});
-    for(let x=0;x<=mr+1e-6;x+=ds)gg.appendChild(E('line',{x1:x*S,y1:0,x2:x*S,y2:mb*S,stroke:'var(--grid)','stroke-width':1}));
-    for(let y=0;y<=mb+1e-6;y+=ds)gg.appendChild(E('line',{x1:0,y1:y*S,x2:mr*S,y2:y*S,stroke:'var(--grid)','stroke-width':1}));
-    for(let x=0;x<=mr+1e-6;x+=.91)gg.appendChild(E('line',{x1:x*S,y1:0,x2:x*S,y2:mb*S,stroke:'var(--grid-major)','stroke-width':1}));
-    for(let y=0;y<=mb+1e-6;y+=.91)gg.appendChild(E('line',{x1:0,y1:y*S,x2:mr*S,y2:y*S,stroke:'var(--grid-major)','stroke-width':1}));
-    root.appendChild(gg);}
+  /* 目盛。通常モードは部屋の下に敷く。設計図面モードは部屋を白で塗りつぶすので、
+     下に敷くと見えなくなる。あとで部屋の上にごく薄く重ねる（gridLayer を使う）。 */
+  const gridLayer=()=>{
+    const cand=[view.grid,.25,.5,.91,1];let ds=cand.find(g=>g*S>=6)||1;
+    const gg=E('g',{'pointer-events':'none'});
+    const fine=DM?'#C9D6E0':'var(--grid)',major=DM?'#A9BBC9':'var(--grid-major)';
+    for(let x=0;x<=mr+1e-6;x+=ds)gg.appendChild(E('line',{x1:x*S,y1:0,x2:x*S,y2:mb*S,stroke:fine,'stroke-width':DM?.5:1}));
+    for(let y=0;y<=mb+1e-6;y+=ds)gg.appendChild(E('line',{x1:0,y1:y*S,x2:mr*S,y2:y*S,stroke:fine,'stroke-width':DM?.5:1}));
+    for(let x=0;x<=mr+1e-6;x+=.91)gg.appendChild(E('line',{x1:x*S,y1:0,x2:x*S,y2:mb*S,stroke:major,'stroke-width':DM?.7:1}));
+    for(let y=0;y<=mb+1e-6;y+=.91)gg.appendChild(E('line',{x1:0,y1:y*S,x2:mr*S,y2:y*S,stroke:major,'stroke-width':DM?.7:1}));
+    if(DM)gg.setAttribute('opacity','.42');
+    return gg;};
+  if(view.showGrid&&!DM)root.appendChild(gridLayer());
   if(view.showArea){
     const ng=E('g',{'pointer-events':'none'});
     noFloorRuns(f).forEach(([x,y,w,h])=>ng.appendChild(E('rect',{x:x*S,y:y*S,width:w*S,height:h*S,fill:'url(#noFloor)'})));
@@ -84,6 +91,7 @@ function paintPlan(sheet,f,S,opt){
           ll.appendChild(txt(cx*S,cy*S+15,`内法 ${f1(a.net)}㎡ / ${f1(a.net/TATAMI)}畳`,{mono:true,size:9,fill:'#8A9CAB'}));}
         else if(med){ll.appendChild(txt(cx*S,cy*S+11,`${f1(a.gross)}㎡`,{mono:true,size:9,fill:'#54677A'}));}}}});
   root.appendChild(rl);
+  if(view.showGrid&&DM)root.appendChild(gridLayer());   /* 図面モードは部屋の上に薄く重ねる */
   if(view.showWall){const MAG=view.wallMag||1,wl=E('g',{}),outW=Math.max(2,state.settings.wallOut*MAG*S);
     /* 壁はハッチ帯（建築図面風）で塗り、両面の種線を上レイヤーで引く */
     const jobs=[];
