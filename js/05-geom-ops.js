@@ -327,6 +327,10 @@ function runSnapOpenings(allFloors){
 function runAlign(tolMm,allFloors){
   const targets=allFloors?state.floors:[F()];
   const optF={furniture:!!window._alignFurniture};
+  /* 壁厚そのものは触らないが、許容を内壁厚以上にすると
+     「壁1枚ぶん離れた壁芯」を同一視して隙間ごと潰してしまう。先に警告する。 */
+  const wIn=(+state.settings.wallIn||0)*1000;
+  if(wIn>0&&tolMm>=wIn&&!confirm(`許容 ${tolMm}mm は内壁の厚み ${f0(wIn)}mm 以上です。\n壁1枚ぶん離れている壁芯どうしをくっつけてしまい、壁が消えることがあります。\n\n（壁の厚み自体はこの機能では変更しません）\n続けますか？`))return;
   const pre=targets.reduce((a,f)=>{const d=alignFloorGeometry(f,tolMm,Object.assign({dry:true},optF));
     return{moved:a.moved+d.moved,rooms:a.rooms+d.rooms,elems:a.elems+d.elems,openings:a.openings+d.openings};},{moved:0,rooms:0,elems:0,openings:0});
   if(!pre.moved){alert('ズレは見つかりませんでした（許容 '+tolMm+'mm 以内で寄せる点なし）。');return;}

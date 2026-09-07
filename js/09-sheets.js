@@ -72,7 +72,12 @@ function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st
   box.appendChild(el('div','palcat','壁の自動整列'));
   box.appendChild(el('div','hint','手で置いた部屋は数ミリだけずれていることがあります。近い座標どうしを1つに寄せて、壁の食い違いを一括で直します。<br><b>窓・ドアは必ず壁の上へ乗せ直します</b>（壁沿いの位置と向きはそのまま）。<b>ソファなどの家具は動かしません</b>。実行前に件数を確認でき、<b>↩ で元に戻せます</b>。'));
   {window._alignTol=window._alignTol||60;
-   box.appendChild(fSelect('許容するズレ',[['30','30mm まで'],['60','60mm まで（標準）'],['100','100mm まで'],['150','150mm まで（大きめ）']],String(window._alignTol),v=>{window._alignTol=+v;buildDispSheet();}));
+   {const wIn=Math.round((+st.wallIn||0)*1000);
+    box.appendChild(fSelect('許容するズレ',
+      [['30','30mm まで'],['60','60mm まで（標準）'],['100','100mm まで'],['150','150mm まで（大きめ）']]
+        .map(([v,lb])=>[v,(+v>=wIn&&wIn>0)?lb+'　⚠内壁'+wIn+'mm以上':lb]),
+      String(window._alignTol),v=>{window._alignTol=+v;buildDispSheet();}));
+    box.appendChild(el('div','refnote','🧱 <b>壁の厚みは変更しません</b>。動かすのは壁芯（壁の中心線）の座標だけで、厚みは外壁 '+Math.round((+st.wallOut||0)*1000)+'mm ／ 内壁 '+wIn+'mm（辺ごとの個別指定があればそれ）のまま保たれます。壁芯がそろえば内法面積は自動で計算し直されます。<br>ただし<b>許容を内壁厚 '+wIn+'mm 以上にすると</b>、壁1枚ぶん離れた壁芯どうしをくっつけて壁が消えることがあります。'));}
    box.appendChild(chk('家具・階段も部屋に合わせて動かす（既定はOFF）',!!window._alignFurniture,v=>{window._alignFurniture=!!v;}));
    const ag=el('div','miniact');
    const b1=btn('⌗ この階を整列',()=>runAlign(window._alignTol,false));b1.classList.add('solid');
