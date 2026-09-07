@@ -69,6 +69,14 @@
         <button class="iconbtn lockbtn editing" id="lockBtn" title="編集モード / 閲覧モードの切替">✎ 編集中</button>
         <button class="iconbtn" id="dispBtn" title="表示・設定">⚙</button>
       </div>
+      <div class="selbar pos-top" id="selbar">
+        <button id="sbPos" title="バーの位置を変える">⇄</button>
+        <span class="nm" id="selName"></span>
+        <button id="sbMode" title="移動 / 変形 / 微調 を切替">✋ 移動</button>
+        <button id="sbMerge" title="もう一つの部屋と合体">⊕ 合体</button>
+        <button id="sbRot">回転</button><button id="sbFlip">反転</button><button id="sbDup">複製</button>
+        <button class="pri" id="sbEdit">詳細</button><button class="dngr" id="sbDel">削除</button>
+      </div>
       <div class="planbody">
         <div class="stage" id="stage">
           <div class="canvaswrap" id="canvaswrap"><svg class="sheet" id="sheet" xmlns="http://www.w3.org/2000/svg"></svg></div>
@@ -92,14 +100,6 @@
         </aside>
       </div>
       <button class="fab" id="fabAdd" title="追加">＋</button>
-      <div class="selbar pos-left" id="selbar">
-        <button id="sbPos" title="バーの位置を変える">⇄</button>
-        <span class="nm" id="selName"></span>
-        <button id="sbMode" title="移動 / 変形 / 微調 を切替">✋ 移動</button>
-        <button id="sbMerge" title="もう一つの部屋と合体">⊕ 合体</button>
-        <button id="sbRot">回転</button><button id="sbFlip">反転</button><button id="sbDup">複製</button>
-        <button class="pri" id="sbEdit">詳細</button><button class="dngr" id="sbDel">削除</button>
-      </div>
     </section>
     <!-- ===== 建物 ===== -->
     <section class="view" id="view-building"><div class="scrollview"><div class="inner" id="buildingView"></div></div></section>

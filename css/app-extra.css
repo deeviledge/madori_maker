@@ -271,3 +271,16 @@ svg.sheet.dm .glyphs *{stroke-width:.9}
 
 /* ---- 合体待ちのバッジはタップで中止できる ---- */
 .viewbadge.tappable{pointer-events:auto;cursor:pointer}
+
+/* ---- 選択バーを上のツールバーの下に固定する（図面に重ならない） ---- */
+.selbar.pos-top{
+  position:static;flex:0 0 auto;
+  border-radius:0;padding:6px 8px;
+  flex-direction:row;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+  box-shadow:0 2px 8px rgba(22,35,47,.18);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.selbar.pos-top::-webkit-scrollbar{display:none}
+.selbar.pos-top button{flex:0 0 auto;padding:0 9px;font-size:11.5px;height:36px;min-width:0}
+/* 名前は縮ませない（他がflex:0 0 autoなので、縮むと0幅になって消える） */
+.selbar.pos-top .nm{flex:0 0 auto;max-width:34vw;padding-left:4px;padding-right:2px}

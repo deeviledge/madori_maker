@@ -71,22 +71,24 @@ function renderTabs(){const box=$('floortabs');box.innerHTML='';
     let timer=null;t.addEventListener('touchstart',()=>{timer=setTimeout(()=>{const n=prompt('階の名称（削除する場合は空欄→OK）',f.name);if(n===null)return;if(n.trim()===''){if(state.floors.length>1&&confirm(f.name+' を削除しますか？')){state.floors=state.floors.filter(z=>z.id!==f.id);if(state.activeFloorId===f.id)state.activeFloorId=state.floors[0].id;view.sel=null;render();}}else{f.name=n.trim();render();}},600);},{passive:true});
     t.addEventListener('touchend',()=>clearTimeout(timer));t.addEventListener('touchmove',()=>clearTimeout(timer));
     box.appendChild(t);});}
-const SELBAR_POS=[['left','左端（縦）'],['right','右端（縦）'],['bottom','下（横）']];
-function applySelbarPos(){const bar=$('selbar');if(!bar)return;const p=view.selbarPos||'left';
-  bar.classList.remove('pos-left','pos-right','pos-bottom');bar.classList.add('pos-'+p);
+const SELBAR_POS=[['top','上に固定（横）'],['left','左端（縦）'],['right','右端（縦）'],['bottom','下（横）']];
+/* 縦並びになるのは左右だけ。上・下は横並び。 */
+function selbarVert(){const p=view.selbarPos||'top';return p==='left'||p==='right';}
+function applySelbarPos(){const bar=$('selbar');if(!bar)return;const p=view.selbarPos||'top';
+  bar.classList.remove('pos-top','pos-left','pos-right','pos-bottom');bar.classList.add('pos-'+p);
   const fab=$('fabAdd');if(fab)fab.classList.toggle('fabLeft',p==='right');}
-function cycleSelbarPos(){const i=SELBAR_POS.findIndex(x=>x[0]===(view.selbarPos||'left'));
+function cycleSelbarPos(){const i=SELBAR_POS.findIndex(x=>x[0]===(view.selbarPos||'top'));
   view.selbarPos=SELBAR_POS[(i+1)%SELBAR_POS.length][0];applySelbarPos();renderSelbar();}
 function renderSelbar(){const o=view.locked?null:selObj(),bar=$('selbar');applySelbarPos();if(!o){view.mergeFrom=null;applyNudgeUI();const bd0=$('viewBadge');if(bd0&&!view.locked)bd0.classList.remove('show');bar.classList.remove('show');view.mode='move';view.resizeMode=0;return;}
   bar.classList.add('show');
   $('selName').textContent=view.sel.type==='room'?o.name:(ELEM[o.kind]?.label||o.kind);
   const mb=$('sbMerge');if(mb){const isRoom=view.sel.type==='room';mb.style.display=isRoom?'':'none';
-    const on=view.mergeFrom===view.sel.id;mb.textContent=on?'✖ 中止':(((view.selbarPos||'left')!=='bottom')?'⊕ 合体':'⊕ 合体');mb.classList.toggle('pri',on);}
+    const on=view.mergeFrom===view.sel.id;mb.textContent=on?'✖ 中止':'⊕ 合体';mb.classList.toggle('pri',on);}
   const bd=$('viewBadge');if(bd&&!view.locked){const on=view.mergeFrom===view.sel.id;
     bd.textContent='⊕ 合体する相手の部屋をタップ（ここをタップで中止）';bd.classList.toggle('show',on);
     bd.classList.toggle('tappable',on);
     bd.onclick=on?(ev=>{ev.stopPropagation();cancelMerge();render();}):null;}
   applyNudgeUI();
-  const vert=(view.selbarPos||'left')!=='bottom';
+  const vert=selbarVert();
   const md=MODES.find(x=>x[0]===(view.mode||'move'))||MODES[0];
   const rb=$('sbMode');if(rb){rb.textContent=vert?md[1].split(' ')[1]:md[1];rb.classList.toggle('pri',md[0]!=='move');}}
