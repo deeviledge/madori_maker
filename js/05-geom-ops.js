@@ -140,9 +140,9 @@ function stepShift(d){const cur=(view.nudgeStep!=null?view.nudgeStep:.05);
   view.nudgeStep=NUDGE_STEPS[Math.max(0,Math.min(NUDGE_STEPS.length-1,i+d))];applyNudgeUI();}
 function cycleNudgeStep(){const cur=(view.nudgeStep!=null?view.nudgeStep:.05);
   let i=NUDGE_STEPS.indexOf(cur);view.nudgeStep=NUDGE_STEPS[(i+1+NUDGE_STEPS.length)%NUDGE_STEPS.length];applyNudgeUI();}
-const NUDGE_POS=[['br','右下'],['bl','左下'],['tl','左上'],['tr','右上']];
+const NUDGE_POS=[['dock','上に固定'],['br','右下'],['bl','左下'],['tl','左上'],['tr','右上']];
 function cycleNudgePos(){if(view.nudgeXY){view.nudgeXY=null;applyNudgeUI();return;}
-  const i=NUDGE_POS.findIndex(x=>x[0]===(view.nudgePos||'br'));
+  const i=NUDGE_POS.findIndex(x=>x[0]===(view.nudgePos||'dock'));
   view.nudgePos=NUDGE_POS[(i+1)%NUDGE_POS.length][0];applyNudgeUI();}
 function applyNudgeUI(){const pad=$('nudgePad');if(!pad)return;
   const o=view.locked?null:selObj();
@@ -153,8 +153,20 @@ function applyNudgeUI(){const pad=$('nudgePad');if(!pad)return;
     hd.classList.toggle('rz',rz);}
   ['S','M','L'].forEach(k=>pad.classList.remove('sz-'+k));pad.classList.add('sz-'+(view.padSize||'S'));
   NUDGE_POS.forEach(([k])=>pad.classList.remove('pos-'+k));
-  if(view.nudgeXY){pad.style.left=view.nudgeXY.x+'px';pad.style.top=view.nudgeXY.y+'px';pad.style.right='auto';pad.style.bottom='auto';}
-  else{pad.style.left=pad.style.top=pad.style.right=pad.style.bottom='';pad.classList.add('pos-'+(view.nudgePos||'br'));}
+  const pos=view.nudgePos||'dock';
+  /* 上に固定のときは選択バーの直後（＝図面の外）へ、それ以外は図面の上に浮かせる。
+     浮かせるモードは stage を基準に位置決めしているので、親も一緒に付け替える。 */
+  if(pos==='dock'){
+    const bar=$('selbar');
+    if(bar&&pad.previousElementSibling!==bar)bar.after(pad);
+    pad.style.left=pad.style.top=pad.style.right=pad.style.bottom='';
+    pad.classList.add('pos-dock');
+  }else{
+    const stg=$('stage');
+    if(stg&&pad.parentElement!==stg)stg.appendChild(pad);
+    if(view.nudgeXY){pad.style.left=view.nudgeXY.x+'px';pad.style.top=view.nudgeXY.y+'px';pad.style.right='auto';pad.style.bottom='auto';}
+    else{pad.style.left=pad.style.top=pad.style.right=pad.style.bottom='';pad.classList.add('pos-'+pos);}
+  }
   const st=$('ndStep');if(st)st.textContent=nudgeStepLabel();
   const fab=$('fabAdd');if(fab&&!view.locked)fab.style.display=on?'none':'';
   }

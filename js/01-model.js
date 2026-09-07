@@ -321,7 +321,7 @@ function reseedUid(d){let mx=0;const scan=v=>{String(v).replace(/\d+$/,m2=>mx=Ma
 function initStore(){
   const saved=(typeof loadStore==='function')?null:null; /* loadStoreは後方定義のため起動時に別途復元 */
   store={scenarios:[makeScenario('綱島プランA（木造4階）')],activeId:null,mode:'hybrid'};store.activeId=store.scenarios[0].id;state=store.scenarios[0];
-  view={pxPerM:40,snap:1,grid:.1,showGrid:1,showLabels:1,showDim:1,showWall:1,showArea:0,showUnder:0,wallMag:1,drawMode:0,locked:0,mode:'move',nudgePad:0,nudgeStep:.05,nudgePos:'br',padSize:'S',nudgeXY:null,selbarPos:'top',vtx:0,resizeMode:0,sel:null,tab:'plan'};}
+  view={pxPerM:40,snap:1,grid:.1,showGrid:1,showLabels:1,showDim:1,showWall:1,showArea:0,showUnder:0,wallMag:1,drawMode:0,locked:0,mode:'move',nudgePad:0,nudgeStep:.05,nudgePos:'dock',padSize:'S',nudgeXY:null,selbarPos:'top',vtx:0,resizeMode:0,sel:null,tab:'plan'};}
 function tryRestore(){const d=loadStore();if(!d)return;try{d.scenarios.forEach(migrateScenario);reseedUid(d);
   store=d;state=store.scenarios.find(x=>x.id===store.activeId)||store.scenarios[0];store.activeId=state.id;
   if(!state.activeFloorId||!state.floors.find(f=>f.id===state.activeFloorId))state.activeFloorId=state.floors[0].id;}catch(e){console.warn('restore failed',e);}}

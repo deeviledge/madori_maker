@@ -37,11 +37,13 @@ $('ndClose').onclick=()=>setEditMode('move');
 /* ヘッダー：ドラッグで場所移動 / タップでモード切替 */
 let padDrag=null;
 $('ndMode').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();
+  /* 上に固定のときは動かさない。padDrag は立てておいて、タップでのモード切替だけ生かす */
+  if((view.nudgePos||'dock')==='dock'&&!view.nudgeXY){padDrag={moved:0};return;}
   const pad=$('nudgePad'),host=pad.parentElement;
   const hr=host.getBoundingClientRect(),pr=pad.getBoundingClientRect();
   padDrag={sx:e.clientX,sy:e.clientY,ox:pr.left-hr.left+host.scrollLeft,oy:pr.top-hr.top+host.scrollTop,pw:pr.width,ph:pr.height,moved:0};
   try{e.target.setPointerCapture(e.pointerId);}catch(x){}});
-$('ndMode').addEventListener('pointermove',e=>{if(!padDrag)return;
+$('ndMode').addEventListener('pointermove',e=>{if(!padDrag||padDrag.sx==null)return;
   const dx=e.clientX-padDrag.sx,dy=e.clientY-padDrag.sy;
   if(!padDrag.moved&&Math.abs(dx)+Math.abs(dy)<7)return;
   padDrag.moved=1;
