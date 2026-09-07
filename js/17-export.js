@@ -33,12 +33,48 @@ function buildExportSheet(){const box=$('exportSheetBody');box.innerHTML='';
   const g=el('div','');g.style.cssText='display:flex;flex-direction:column;gap:8px';
   const bpdf=btn('📄 PDF（銀行提出用）を出力',()=>{exportPDF(state);});bpdf.style.cssText='background:var(--ink);color:#fff;font-weight:700;padding:12px';g.appendChild(bpdf);
   const bxls=btn('📊 Excel（項目別シート）を出力',()=>{exportExcel(state);});bxls.style.cssText='background:#1D6F42;color:#fff;font-weight:700;padding:12px';g.appendChild(bxls);
+  const bplan=btn('📐 全階の平面図PDF（設計図面）',()=>{exportPlansPdf(state);});bplan.style.cssText='background:#34506B;color:#fff;font-weight:700';g.appendChild(bplan);
   const bimg=el('div','miniact');bimg.appendChild(btn('🖼 現在の階をPNG',()=>{exportPng();}));bimg.appendChild(btn('🖼 現在の階をSVG',()=>{exportSvg();}));g.appendChild(bimg);
   box.appendChild(g);
   box.appendChild(subttl('シナリオ別 一括PDF'));
   const sc=el('div','');sc.style.cssText='display:flex;flex-direction:column;gap:6px';
   store.scenarios.forEach(s2=>{sc.appendChild(btn('📄 '+s2.name+' のPDF',()=>{exportPDF(s2);}));});
   box.appendChild(sc);}
+/* --- 全階の平面図だけをまとめたPDF（設計図面の見た目、1階＝1ページ） --- */
+function exportPlansPdf(sc){
+  sc=sc||state;migrateScenario(sc);
+  const agg=buildingAggSc(sc);
+  const now=new Date().toLocaleDateString('ja-JP');
+  /* 上階から順に並べる（フロア配列の並び＝上が上階） */
+  const pages=sc.floors.map((f,i)=>{
+    const t=floorTotalsSc(f,sc);
+    return `<section class="pg${i?' pb':''}">
+      <div class="hd"><b>${esc(sc.name)}</b><span>${esc(f.name)} 平面図　（${i+1} / ${sc.floors.length}）</span></div>
+      <div class="plan">${planSVGString(sc,f,44,{drawMode:1,showWall:1,showDim:1,showLabels:1})}</div>
+      <div class="cap">内法 ${f1(t.net)}㎡　／　賃貸 ${f1(t.basis.rental)}㎡・自宅 ${f1(t.basis.own)}㎡（外形・壁芯面積は図面下の表題欄を参照）</div>
+    </section>`;}).join('');
+  const h=`<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>平面図 ${esc(sc.name)}</title>
+   <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+   <style>
+   @page{size:A4;margin:12mm}*{box-sizing:border-box}
+   body{font-family:'Noto Sans JP',sans-serif;color:#16232F;margin:0}
+   .pg{page-break-inside:avoid}.pb{page-break-before:always}
+   .hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #34506B;padding-bottom:5px;margin-bottom:10px;font-size:12px}
+   .hd span{color:#54677A;font-size:10.5px}
+   .plan{text-align:center}
+   .plan svg{max-width:100%;height:auto}
+   .cap{font-size:9.5px;color:#54677A;text-align:center;margin-top:8px}
+   .foot{margin-top:14px;font-size:9px;color:#9AA5AF;text-align:right}
+   /* 画面と同じ線幅の階層（設備の姿線は細く） */
+   svg.sheet.dm .glyphs *{stroke-width:.9}
+   </style></head><body>
+   ${pages}
+   <div class="foot">延床 ${f1(agg.gross)}㎡（${f1(agg.gross/TSUBO)}坪）　作成 ${now}　事業計画スタジオ</div>
+   <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(!w){alert('ポップアップがブロックされました。ブラウザ設定で許可してください。');return;}
+  w.document.write(h);w.document.close();
+}
 /* --- 平面図をSVG文字列で取得（任意シナリオ・階） --- */
 function floorSVG(sc,f,px){px=px||38;let mr=f.footW,mb=f.footH;
   f.rooms.forEach(r=>{const b=bbox(r.poly);mr=Math.max(mr,b.x+b.w);mb=Math.max(mb,b.y+b.h);});
@@ -129,7 +165,7 @@ function exportFullPdf(sc){migrateScenario(sc);const r=financeCalc(sc);const agg
   P.push(s1);
   /* ---- 平面図 ---- */
   let s2=`<div class="sec"><span class="secnum">02</span>平面図（全階）</div><div class="plans">`;
-  sc.floors.forEach(f=>{s2+=`<div class="plan">${floorSVG(sc,f,30)}<div class="cap">${esc(f.name)}　外形 ${mm(f.footW)}×${mm(f.footH)}mm</div></div>`;});
+  sc.floors.forEach(f=>{s2+=`<div class="plan">${planSVGString(sc,f,30,{drawMode:1})}</div>`;});
   s2+=`</div>`;P.push(s2);
   /* ---- 資金計画 ---- */
   let s3=`<div class="sec"><span class="secnum">03</span>資金計画（総事業費）</div>
@@ -296,7 +332,7 @@ function exportPDF(sc){migrateScenario(sc);const r=financeCalc(sc);const agg=bui
     <p>敷地面積 ${f1(r.c.la)}㎡（${f1(r.c.lt)}坪）／ 建ぺい率 ${f1(r.c.bcrPct)}% ・ 容積率 ${f1(r.c.farPct)}%</p>`;}
   if(S.plan_all||S.plan_cur){h+=`<h2>2. 平面図</h2>`;
     const floors=S.plan_all?sc.floors:[sc.floors.find(f=>f.id===sc.activeFloorId)||sc.floors[0]];
-    floors.forEach(f=>{h+=`<div class="plan">${floorSVG(sc,f,34)}<div class="cap">${esc(f.name)}　1:100目安　外形 ${mm(f.footW)}×${mm(f.footH)}mm</div></div>`;});}
+    floors.forEach(f=>{h+=`<div class="plan">${planSVGString(sc,f,34,{drawMode:1})}</div>`;});}
   if(S.cost){h+=`<h2>3. 資金計画（総事業費）</h2>
     <table><tr><th class="l">区分</th><th>金額</th></tr>
     <tr><td class="l">① 土地取得費</td><td>${yen(r.c.landPrice)}</td></tr>

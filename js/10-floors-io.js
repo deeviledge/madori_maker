@@ -11,6 +11,13 @@ function addFloorFrom(srcId){const src=srcId?state.floors.find(f=>f.id===srcId):
 function moveFloor(id,dir){const i=state.floors.findIndex(f=>f.id===id);if(i<0)return;
   const j=i+dir;if(j<0||j>=state.floors.length)return;
   const a=state.floors;[a[i],a[j]]=[a[j],a[i]];render();buildFloorSheet();}
+/* 2つの階の「間取りの中身」を入れ替える（名前と並び順はその場に残す）。
+   1Fと2Fの間取りを入れ替えたいときは、▲▼の並べ替えではなくこちらを使う。 */
+function swapFloorPlans(idA,idB){
+  const a=state.floors.find(f=>f.id===idA),b=state.floors.find(f=>f.id===idB);
+  if(!a||!b||a===b)return;
+  ['rooms','elems','footW','footH','frameMode'].forEach(k=>{const t=a[k];a[k]=b[k];b[k]=t;});
+  window._swapFrom=null;pushHistory();render();buildFloorSheet();}
 /* 下から 1F,2F,... に付け直す */
 function renumberFloors(){const n=state.floors.length;
   state.floors.forEach((f,i)=>{f.name=(n-i)+'F';});render();buildFloorSheet();}
@@ -35,7 +42,7 @@ function deleteFloor(id){if(state.floors.length<=1){alert('最後のフロアは
   if(state.price&&state.price.perFloor)delete state.price.perFloor[id];
   view.sel=null;render();buildFloorSheet();}
 function buildFloorSheet(){const box=$('floorSheetBody');box.innerHTML='';
-  box.appendChild(el('div','hint','フロア（各階）をここで管理します。行をタップで表示切替、▲▼で並べ替え、✎で名称変更、⧉で複製、🗑で削除。'));
+  box.appendChild(el('div','hint','フロア（各階）をここで管理します。行をタップで表示切替、▲▼で並べ替え（階名も一緒に動きます）、<b>⇅で間取りの入れ替え</b>（階名はその場に残るので「1Fと2Fの間取りを入れ替える」はこちら）、✎で名称変更、⧉で複製、🗑で削除。'));
   /* --- 階数の設定 --- */
   box.appendChild(el('div','palcat','階数を設定'));
   {const cur=state.floors.length;
@@ -63,6 +70,17 @@ function buildFloorSheet(){const box=$('floorSheetBody');box.innerHTML='';
     {const i=state.floors.indexOf(f);
      const up=btn('▲',()=>moveFloor(f.id,-1));if(i===0)up.disabled=true,up.style.opacity='.3';acts.appendChild(up);
      const dn=btn('▼',()=>moveFloor(f.id,1));if(i===state.floors.length-1)dn.disabled=true,dn.style.opacity='.3';acts.appendChild(dn);}
+    if(state.floors.length>1){
+      if(window._swapFrom&&window._swapFrom!==f.id){
+        const sw=btn('ここと入替',()=>swapFloorPlans(window._swapFrom,f.id));
+        sw.style.cssText='background:var(--accent);color:#fff;font-weight:800;font-size:10.5px;padding:0 8px';
+        acts.appendChild(sw);
+      }else{
+        const sw=btn('⇅',()=>{window._swapFrom=(window._swapFrom===f.id)?null:f.id;buildFloorSheet();});
+        if(window._swapFrom===f.id)sw.style.cssText='background:var(--ink);color:#fff';
+        acts.appendChild(sw);
+      }
+    }
     acts.appendChild(btn('✎',()=>{const n=prompt('フロア名',f.name);if(n&&n.trim()){f.name=n.trim();render();buildFloorSheet();}}));
     acts.appendChild(btn('⧉',()=>addFloorFrom(f.id)));
     if(state.floors.length>1)acts.appendChild(btn('🗑',()=>deleteFloor(f.id),'del'));

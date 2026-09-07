@@ -3,8 +3,14 @@
      関数・変数はグローバル共有のまま（ESモジュール化していない）。 */
 /* ================= キャンバス描画 ================= */
 const sheet=$('sheet'),stage=$('stage'),dimtip=$('dimtip');
-function renderSheet(){drawFloorId=state.activeFloorId;
-  const f=F(),S=view.pxPerM;let mr=f.footW,mb=f.footH;
+function renderSheet(){paintPlan(sheet,F(),view.pxPerM,{interactive:true});}
+/* 平面図を任意のSVG要素へ描く。
+   interactive:false なら選択ハンドルもイベントも付けないので、PDF用に画面外へ描ける。
+   画面もPDFもこの1本を通すので、見た目が食い違わない。 */
+function paintPlan(sheet,f,S,opt){
+  opt=opt||{};const interactive=opt.interactive!==false;
+  drawFloorId=f.id;
+  let mr=f.footW,mb=f.footH;
   sheet.innerHTML='';
   f.rooms.forEach(r=>{const b=bbox(r.poly);mr=Math.max(mr,b.x+b.w);mb=Math.max(mb,b.y+b.h);});
   f.elems.forEach(e=>{mr=Math.max(mr,e.x+e.w);mb=Math.max(mb,e.y+e.h);});
@@ -17,7 +23,8 @@ function renderSheet(){drawFloorId=state.activeFloorId;
   const titleH=DM?52:0;                           /* 表題欄の帯（px） */
   const Wpx=(mr+M)*S,Hpx=(mb+M)*S+titleH;
   sheet.setAttribute('width',Wpx);sheet.setAttribute('height',Hpx);
-  sheet.classList.toggle('dm',DM);
+  sheet.setAttribute('viewBox',`0 0 ${Wpx} ${Hpx}`);
+  sheet.setAttribute('class','sheet'+(DM?' dm':''));
   {const defs=E('defs',{});
    const hp=(id,bg,ln,sw)=>{const pt=E('pattern',{id,width:6,height:6,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'});
      pt.appendChild(E('rect',{x:0,y:0,width:6,height:6,fill:bg}));
@@ -44,16 +51,16 @@ function renderSheet(){drawFloorId=state.activeFloorId;
     g.appendChild(E('polygon',{points:PT(ip),fill:hexA(col,view.drawMode?.30:.18),stroke:view.showWall?'none':col,'stroke-width':1.2}));
     if(view.showWall)ol.appendChild(E('polygon',{points:PT(ip),fill:'none',stroke:'#3F4B56','stroke-width':1.2}));  /* \u58c1\u306e\u5185\u5074\u306e\u9762\u7dda */
     if(r.sym){const b=bbox(ip);const sg=E('g',{transform:`translate(${b.x*S},${b.y*S})`});drawGlyph(sg,r.sym,b.w*S,b.h*S,{},true);g.appendChild(sg);}
-    g.addEventListener('pointerdown',ev=>startMove(ev,'room',r.id));rl.appendChild(g);
+    if(interactive)g.addEventListener('pointerdown',ev=>startMove(ev,'room',r.id));rl.appendChild(g);
     /* ラベルは壁レイヤーより上に描画（壁を実厚み化しても隠れない） */
     if(view.showLabels){const [cx,cy]=centroid(ip),b=bbox(ip),a=roomAreas(r,f);
       const big=b.w*S>62&&b.h*S>40,med=b.w*S>52&&b.h*S>24;
-      const fs=Math.min(13,Math.max(9,b.w*S/6));
+      const fs=fitFont(r.name,b.w*S,Math.min(13,Math.max(9,b.w*S/6)));
       if(DM){
         /* 図面モード：名称＋畳数の2行だけ（実際の間取り図の書式に寄せる） */
         const room2=med&&b.h*S>42;   /* 2行入る高さがあるときだけ畳数を添える */
         ll.appendChild(txt(cx*S,cy*S-(room2?6:0),r.name,{weight:700,size:fs}));
-        if(room2)ll.appendChild(txt(cx*S,cy*S+9,`${f1(a.net/TATAMI)}畳`,{mono:true,size:9.5,fill:'#54677A'}));
+        if(room2)ll.appendChild(txt(cx*S,cy*S+9,`${f1(a.net/TATAMI)}畳`,{mono:true,size:Math.min(9.5,fitFont('00.0畳',b.w*S,9.5)),fill:'#54677A'}));
       }else{
         ll.appendChild(txt(cx*S,cy*S-(big?12:0),r.name,{weight:700,size:fs}));
         if(big){ll.appendChild(txt(cx*S,cy*S+3,`壁芯 ${f1(a.gross)}㎡ / ${f1(a.gross/TATAMI)}畳`,{mono:true,size:9.5,fill:'#54677A'}));
@@ -81,7 +88,6 @@ function renderSheet(){drawFloorId=state.activeFloorId;
         wl.appendChild(E('rect',{x:x*S-h2,y:y*S-h2,width:cs,height:cs,fill:'#16232F'})));}
     root.appendChild(wl);}
   root.appendChild(ol);
-  root.appendChild(ll);
   const eg=E('g',{class:'glyphs'});
   f.elems.forEach(e=>{const rot=e.rot||0;const dw=e.w*S,dh=e.h*S,cx=e.x*S+dw/2,cy=e.y*S+dh/2;
     const g=E('g',{class:'obj'});g.dataset.type='elem';g.dataset.id=e.id;
@@ -89,9 +95,10 @@ function renderSheet(){drawFloorId=state.activeFloorId;
     const inner=E('g',{transform:`translate(${cx},${cy}) rotate(${rot*90}) scale(${e.flip?-1:1},1) translate(${-cw/2},${-ch/2})`});
     drawGlyph(inner,ELEM[e.kind]?.glyph||e.kind,cw,ch,Object.assign({},e.props||{},{dir:e.dir,flip:e.flip,srcKind:e.kind}));
     g.appendChild(E('rect',{x:e.x*S,y:e.y*S,width:dw,height:dh,fill:'transparent'}));
-    g.appendChild(inner);g.addEventListener('pointerdown',ev=>startMove(ev,'elem',e.id));eg.appendChild(g);});
+    g.appendChild(inner);if(interactive)g.addEventListener('pointerdown',ev=>startMove(ev,'elem',e.id));eg.appendChild(g);});
   root.appendChild(eg);
-  const o=selObj();
+  root.appendChild(ll);   /* 部屋名は家具・建具より前面へ（実際の間取り図と同じ重ね順） */
+  const o=interactive?selObj():null;
   if(o){const hg=E('g',{}),b=(view.sel.type==='room')?bbox(o.poly):{x:o.x,y:o.y,w:o.w,h:o.h};const x=b.x*S,y=b.y*S,w=b.w*S,h=b.h*S;
     hg.appendChild(E('rect',{x,y,width:w,height:h,fill:'none',stroke:'var(--accent)','stroke-width':view.resizeMode?2.4:2,'stroke-dasharray':view.resizeMode?null:'6 4'}));
     if(view.resizeMode){
@@ -125,6 +132,27 @@ function renderSheet(){drawFloorId=state.activeFloorId;
     drawNorth(fr,Wpx-28,(Hpx-titleH)/2);
     drawTitleBlock(fr,Wpx,Hpx,titleH,f,state);
     sheet.appendChild(fr);
+  }
+}
+/* 画面外に1階分を描いてSVG文字列で返す（PDF・SVG出力用）。
+   drawGlyph などが view の値を直接見るため、一時的に差し替えて必ず元へ戻す。 */
+function planSVGString(sc,f,px,opt){
+  opt=opt||{};
+  const keep={pxPerM:view.pxPerM,drawMode:view.drawMode,sel:view.sel,showLabels:view.showLabels,showDim:view.showDim,showWall:view.showWall,showGrid:view.showGrid};
+  const keepDraw=drawFloorId,keepState=state;
+  try{
+    if(sc)state=sc;/* 壁厚・階高などはシナリオ側の設定を使う */
+    view.pxPerM=px;view.sel=null;
+    if(opt.drawMode!=null)view.drawMode=opt.drawMode?1:0;
+    if(opt.showLabels!=null)view.showLabels=opt.showLabels?1:0;
+    if(opt.showDim!=null)view.showDim=opt.showDim?1:0;
+    if(opt.showWall!=null)view.showWall=opt.showWall?1:0;
+    const svg=document.createElementNS(SVGNS,'svg');
+    paintPlan(svg,f,px,{interactive:false});
+    svg.setAttribute('xmlns',SVGNS);
+    return new XMLSerializer().serializeToString(svg);
+  }finally{
+    Object.assign(view,keep);drawFloorId=keepDraw;state=keepState;
   }
 }
 function cur(d){return ({nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'})[d];}
@@ -205,6 +233,10 @@ function drawTitleBlock(g,Wpx,Hpx,h,f,sc){
   g.appendChild(txt(Wpx-pad,y+h*.76,`${mm(f.footW)} × ${mm(f.footH)}　${stamp}`,{anchor:'end',mono:true,size:9.5,fill:'#54677A'}));
 }
 
+/* 部屋名が枠からはみ出さないよう、幅に合わせて文字サイズを詰める。
+   日本語は全角1em・半角0.55em として概算する。 */
+function textEm(s){let w=0;for(const ch of String(s))w+=(ch.charCodeAt(0)<128?.55:1);return w||1;}
+function fitFont(s,availPx,base){return Math.max(6.5,Math.min(base,(availPx-6)/textEm(s)));}
 /* ================= グリフ ================= */
 function drawGlyph(g,kind,w,h,opt,asOverlay){opt=opt||{};const flip=!!opt.flip,line='#2A3A49',soft='#54677A',horiz=w>=h;
   const box=(fill,stroke,sw)=>E('rect',{x:0,y:0,width:w,height:h,fill:fill||'none',stroke:stroke||line,'stroke-width':sw||1.3,rx:1});
