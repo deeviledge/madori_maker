@@ -66,7 +66,7 @@ function render(){
 function renderScen(){const s=$('scenSel');s.innerHTML='';store.scenarios.forEach(sc=>{const o=document.createElement('option');o.value=sc.id;o.textContent=sc.name;if(sc.id===store.activeId)o.selected=true;s.appendChild(o);});}
 function renderTabs(){const box=$('floortabs');box.innerHTML='';
   [...state.floors].forEach(f=>{const t=el('div','ftab'+(f.id===state.activeFloorId?' active':''));t.textContent=f.name;
-    t.onclick=()=>{state.activeFloorId=f.id;view.sel=null;render();};
+    t.onclick=()=>{cancelMerge();state.activeFloorId=f.id;view.sel=null;render();};
     t.ondblclick=()=>{const n=prompt('階の名称',f.name);if(n){f.name=n.trim();render();}};
     let timer=null;t.addEventListener('touchstart',()=>{timer=setTimeout(()=>{const n=prompt('階の名称（削除する場合は空欄→OK）',f.name);if(n===null)return;if(n.trim()===''){if(state.floors.length>1&&confirm(f.name+' を削除しますか？')){state.floors=state.floors.filter(z=>z.id!==f.id);if(state.activeFloorId===f.id)state.activeFloorId=state.floors[0].id;view.sel=null;render();}}else{f.name=n.trim();render();}},600);},{passive:true});
     t.addEventListener('touchend',()=>clearTimeout(timer));t.addEventListener('touchmove',()=>clearTimeout(timer));
@@ -83,7 +83,9 @@ function renderSelbar(){const o=view.locked?null:selObj(),bar=$('selbar');applyS
   const mb=$('sbMerge');if(mb){const isRoom=view.sel.type==='room';mb.style.display=isRoom?'':'none';
     const on=view.mergeFrom===view.sel.id;mb.textContent=on?'✖ 中止':(((view.selbarPos||'left')!=='bottom')?'⊕ 合体':'⊕ 合体');mb.classList.toggle('pri',on);}
   const bd=$('viewBadge');if(bd&&!view.locked){const on=view.mergeFrom===view.sel.id;
-    bd.textContent='⊕ 合体する相手の部屋をタップしてください';bd.classList.toggle('show',on);}
+    bd.textContent='⊕ 合体する相手の部屋をタップ（ここをタップで中止）';bd.classList.toggle('show',on);
+    bd.classList.toggle('tappable',on);
+    bd.onclick=on?(ev=>{ev.stopPropagation();cancelMerge();render();}):null;}
   applyNudgeUI();
   const vert=(view.selbarPos||'left')!=='bottom';
   const md=MODES.find(x=>x[0]===(view.mode||'move'))||MODES[0];

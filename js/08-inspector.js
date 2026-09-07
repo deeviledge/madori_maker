@@ -56,8 +56,22 @@ function buildInspector(host,o){host.innerHTML='';if(!o)return;const isRoom=view
   /* 参考サイズ・よくある寸法（設備） */
   if(!isRoom){
     host.appendChild(subttl('床面積への反映'));
-    host.appendChild(el('div','hint','設備は絵が出るだけで<b>床面積（延床）には入りません</b>。この範囲を床として算入したいときは、同じ大きさの部屋を作ってください。'));
-    const mk=btn('▦ この範囲を部屋にする（床面積に算入）',()=>elemToRoom(o));
+    host.appendChild(el('div','hint','設備は絵が出るだけで<b>床面積（延床）には入りません</b>。床として算入したい範囲を選んで部屋にしてください。'
+      +(isStairObj(o)?'<br>階段は<b>下の階では階段室ぜんぶが床</b>、<b>上の階では上りきった側だけが床</b>（残りは吹抜け）になります。上の階では半分だけ、などで調整してください。':'')));
+    window._elemRoomPart=window._elemRoomPart||'all';
+    const pg=el('div','chips');
+    ELEM_ROOM_PARTS.forEach(([v,lb])=>{
+      if(v==='stair'&&!isStairObj(o))return;
+      const b=document.createElement('button');b.type='button';b.textContent=lb;
+      if(window._elemRoomPart===v)b.classList.add('on');
+      b.onclick=()=>{window._elemRoomPart=v;renderSheet();buildInspector(host,o);};
+      pg.appendChild(b);});
+    host.appendChild(pg);
+    {const rc=elemRoomRect(o,window._elemRoomPart);
+     host.appendChild(el('div','grid2',
+       `<span class="g-k">追加される床面積</span><span class="g-v"><b>${f1(rc.w*rc.h)}㎡</b>（${f1(rc.w*rc.h/TATAMI)}畳）</span>`+
+       `<span class="g-k">大きさ</span><span class="g-v">${mm(rc.w)} × ${mm(rc.h)} mm</span>`));}
+    const mk=btn('▦ この範囲を部屋にする（床面積に算入）',()=>elemToRoom(o,window._elemRoomPart));
     mk.classList.add('solid');host.appendChild(mk);
   }
   if(!isRoom&&ELEM[o.kind]){const d=ELEM[o.kind];

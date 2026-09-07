@@ -171,6 +171,8 @@ function nudgeSel(sx,sy){const o=selObj();if(!o||view.locked)return;
   else{o.x=r3(o.x+dx);o.y=r3(o.y+dy);}
   render();}
 /* 合体モード */
+/* 合体の待ち受けを解除する。モード切替・タブ移動・階/シナリオ切替から必ず通す。 */
+function cancelMerge(){if(!view.mergeFrom)return false;view.mergeFrom=null;return true;}
 function startMerge(){const o=selObj();if(!o||view.sel.type!=='room'){alert('合体できるのは部屋同士です。まず部屋を選んでください。');return;}
   if(view.mergeFrom===view.sel.id){view.mergeFrom=null;}else{view.mergeFrom=view.sel.id;}
   render();}
@@ -185,20 +187,41 @@ function doMerge(bId){const f=F(),a=f.rooms.find(r=>r.id===view.mergeFrom),b=f.r
   f.rooms=f.rooms.filter(r=>r.id!==b.id);
   view.sel={type:'room',id:a.id};
   render();}
-/* 設備の外形と同じ大きさの部屋を作って床面積に算入させる。
+/* 設備の外形のうち、この階の床として算入したい範囲を返す。
+   階段は「下の階では階段室全体が床／上の階では上りきった側だけが床で、残りは吹抜け」
+   になるため、全体をそのまま部屋にすると床を二重に数えてしまう。 */
+const ELEM_ROOM_PARTS=[['all','全体'],['top','上半分'],['bottom','下半分'],['left','左半分'],['right','右半分'],['stair','階段の実寸']];
+function elemRoomRect(e,part){
+  const x=e.x,y=e.y,w=e.w,h=e.h;
+  switch(part){
+    case 'top':    return{x,y,w,h:h/2};
+    case 'bottom': return{x,y:y+h/2,w,h:h/2};
+    case 'left':   return{x,y,w:w/2,h};
+    case 'right':  return{x:x+w/2,y,w:w/2,h};
+    case 'stair':{
+      if(!isStairObj(e))return{x,y,w,h};
+      /* stairCalc の run（段が並ぶ長さ）× clearW（有効幅）＝ 実際に踏まれる1経路ぶん */
+      const c=stairCalc(e),horiz=e.w>=e.h;
+      const rw=Math.min(w,horiz?c.run:c.clearW),rh=Math.min(h,horiz?c.clearW:c.run);
+      return{x:x+(w-rw)/2,y:y+(h-rh)/2,w:rw,h:rh};
+    }
+    default: return{x,y,w,h};
+  }
+}
+/* 設備の範囲（の一部）と同じ大きさの部屋を作って床面積に算入させる。
    設備そのものは残すので、絵はそのままで面積だけが増える。 */
-function elemToRoom(e){
+function elemToRoom(e,part){
   if(!e)return;
   const f=F(),label=(ELEM[e.kind]&&ELEM[e.kind].label)||e.kind;
-  const w=(e.rot%2===1)?e.h:e.w, h=(e.rot%2===1)?e.w:e.h;
-  const cx=e.x+e.w/2, cy=e.y+e.h/2;
-  const type=isStairObj(e)?'自宅内部':'自宅内部';
-  const r=room(label,type,cx-w/2,cy-h/2,w,h);
+  const rc=elemRoomRect(e,part||'all');
+  if(!(rc.w>0&&rc.h>0)){alert('その範囲では大きさが0になります。');return;}
+  const pl=(ELEM_ROOM_PARTS.find(p=>p[0]===(part||'all'))||['','全体'])[1];
+  const r=room(label+((part&&part!=='all')?'（'+pl+'）':''),'自宅内部',rc.x,rc.y,rc.w,rc.h);
   snapNow();
   f.rooms.push(r);
   view.sel={type:'room',id:r.id};
   pushHistory();render();
-  alert('「'+label+'」の範囲に部屋を追加しました（'+f1(w*h)+'㎡）。\n用途・名称はインスペクタで変えられます。');
+  alert('「'+label+'」の'+pl+'に部屋を追加しました（'+f1(rc.w*rc.h)+'㎡）。\n用途・名称・大きさはインスペクタで変えられます。');
 }
 /* ================= 壁の自動整列（一括微調整） =================
    手で置いた部屋は、7198と7200のように数ミリだけずれていることが多い。

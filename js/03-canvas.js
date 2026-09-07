@@ -116,6 +116,12 @@ function paintPlan(sheet,f,S,opt){
   root.appendChild(eg);
   root.appendChild(ll);   /* 部屋名は家具・建具より前面へ（実際の間取り図と同じ重ね順） */
   const o=interactive?selObj():null;
+  /* 設備を選んでいるとき、「部屋にする範囲」を破線でプレビューする */
+  if(o&&interactive&&view.sel.type==='elem'&&window._elemRoomPart&&window._elemRoomPart!=='all'){
+    const rc=elemRoomRect(o,window._elemRoomPart);
+    root.appendChild(E('rect',{x:rc.x*S,y:rc.y*S,width:rc.w*S,height:rc.h*S,
+      fill:'rgba(14,124,134,.16)',stroke:'#0E7C86','stroke-width':1.6,'stroke-dasharray':'5 3','pointer-events':'none'}));
+  }
   if(o){const hg=E('g',{}),b=(view.sel.type==='room')?bbox(o.poly):{x:o.x,y:o.y,w:o.w,h:o.h};const x=b.x*S,y=b.y*S,w=b.w*S,h=b.h*S;
     hg.appendChild(E('rect',{x,y,width:w,height:h,fill:'none',stroke:'var(--accent)','stroke-width':view.resizeMode?2.4:2,'stroke-dasharray':view.resizeMode?null:'6 4'}));
     if(view.resizeMode){

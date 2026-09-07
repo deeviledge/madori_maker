@@ -25,7 +25,8 @@ function toggleLock(){
   applyLockUI();render();}
 $('lockBtn').onclick=toggleLock;
 const MODES=[['move','✋ 移動'],['resize','⤢ 変形'],['nudge','✥ 微調']];
-function setEditMode(m){view.mode=m;view.resizeMode=(m==='resize')?1:0;view.nudgePad=(m==='nudge')?1:0;render();}
+function setEditMode(m){cancelMerge();/* 合体待ちのまま別モードへ行かない */
+  view.mode=m;view.resizeMode=(m==='resize')?1:0;view.nudgePad=(m==='nudge')?1:0;render();}
 function cycleMode(){const i=MODES.findIndex(x=>x[0]===(view.mode||'move'));setEditMode(MODES[(i+1)%MODES.length][0]);}
 $('sbMode').onclick=cycleMode;
 $('ndStep').onclick=cycleNudgeStep;
@@ -79,7 +80,7 @@ function tabAllowed(view){const m=mode();
     if(view==='exit')return false;}
   if(view==='exit'){const b=document.querySelector('#tabbar button[data-view="exit"]');const modes=(b&&b.dataset.modes||'').split(' ');return modes.includes(m);}
   return true;}
-function applyMode(){const m=mode();
+function applyMode(){cancelMerge();const m=mode();
   document.querySelectorAll('#modebar button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
   document.querySelectorAll('#tabbar button').forEach(b=>{const v=b.dataset.view;b.style.display=tabAllowed(v)?'':'none';});
   document.body.dataset.mode=m;
@@ -95,14 +96,14 @@ function setMode(m){const prev=store.mode;store.mode=m;
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+view.tab));
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.view===view.tab));
   render();}
-function switchTab(t){if(!tabAllowed(t))t='plan';view.tab=t;
+function switchTab(t){cancelMerge();if(!tabAllowed(t))t='plan';view.tab=t;
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.view===t));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+t));
   render();updUndoUI();
   const bar=$('tabbar');const ab=bar.querySelector('button.active');if(ab)ab.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});}
 document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>switchTab(b.dataset.view));
 document.querySelectorAll('#modebar button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-$('scenSel').onchange=e=>{store.activeId=e.target.value;state=store.scenarios.find(s=>s.id===store.activeId);view.sel=null;render();};
+$('scenSel').onchange=e=>{cancelMerge();store.activeId=e.target.value;state=store.scenarios.find(s=>s.id===store.activeId);view.sel=null;render();};
 $('menuBtn').onclick=()=>openSheet('menuSheet');
 $('fabAdd').onclick=()=>openSheet('addSheet');
 $('deskAddBtn').onclick=()=>openSheet('addSheet');
