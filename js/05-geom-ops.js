@@ -334,28 +334,40 @@ function snapRoomToNeighbors(r,f,tolM){
   r.poly=r.poly.map(([x,y])=>[x0+(x-b.x)*sx, y0+(y-b.y)*sy]);
   return true;
 }
-/* ================= 外壁（建物枠）を間取りに合わせる =================
-   整列は「部屋を建物枠に寄せる」向きなので、その逆＝枠を実際の間取りの外周へ
-   合わせる操作を用意する。建築面積・建ぺい率が動くため必ず確認を挟む。 */
-function fitFrameToRooms(f){
-  if(!f.rooms||!f.rooms.length)return null;
-  let mx=0,my=0;
-  f.rooms.forEach(r=>{const b=bbox(r.poly);mx=Math.max(mx,b.x+b.w);my=Math.max(my,b.y+b.h);});
-  if(!(mx>0&&my>0))return null;
-  return{w:mx,h:my};
+/* ================= 内壁を外壁（建物枠）に合わせる =================
+   外壁＝建物枠は動かさない。枠に面しているはずの部屋の辺が中途半端に離れて（または
+   はみ出して）いるとき、その辺だけを枠のラインへ寄せる。整列の許容（数十mm）では
+   届かない 100〜500mm のズレを対象にするため、専用の許容値を持つ。 */
+function fitRoomsToFrame(f,tolM,opt){
+  opt=opt||{};const tol=Math.max(0,(tolM!=null?tolM:.3));
+  if(!(tol>0))return{moved:0,rooms:0};
+  const pull=(v,a)=>Math.abs(v-a)<=tol?a:v;
+  let moved=0,rooms=0;
+  f.rooms.forEach(r=>{
+    let hit=0;
+    const np=r.poly.map(([x,y])=>{
+      const nx=pull(pull(x,0),f.footW),ny=pull(pull(y,0),f.footH);
+      if(Math.abs(nx-x)>1e-9||Math.abs(ny-y)>1e-9)hit++;
+      return[nx,ny];});
+    /* 潰れる場合は寄せない */
+    if(hit){const b=bbox(np);if(b.w<.3||b.h<.3)return;}
+    if(hit&&!opt.dry)r.poly=np;
+    if(hit){moved+=hit;rooms++;}});
+  return{moved,rooms};
 }
-function runFitFrame(allFloors){
+function runFitRooms(allFloors){
+  const tol=(+window._frameTol||300)/1000;
   const targets=allFloors?state.floors:[F()];
-  const plan=targets.map(f=>({f,to:fitFrameToRooms(f)}))
-    .filter(p=>p.to&&(Math.abs(p.to.w-p.f.footW)>1e-6||Math.abs(p.to.h-p.f.footH)>1e-6));
-  if(!plan.length){alert('建物枠（外壁）は、すでに間取りの外周と一致しています。');return;}
-  const msg=plan.map(p=>`・${p.f.name}　${mm(p.f.footW)}×${mm(p.f.footH)} → ${mm(p.to.w)}×${mm(p.to.h)}`).join('\n');
-  const before=builtArea();
-  if(!confirm(`建物枠（外壁）を間取りの外周に合わせます。\n\n${msg}\n\n建築面積・建ぺい率が変わります。実行しますか？\n（↩ で元に戻せます）`))return;
+  const pre=targets.reduce((a,f)=>{const d=fitRoomsToFrame(f,tol,{dry:true});
+    return{moved:a.moved+d.moved,rooms:a.rooms+d.rooms};},{moved:0,rooms:0});
+  if(!pre.moved){alert('外壁のラインから '+Math.round(tol*1000)+'mm 以内でズレている部屋の辺はありませんでした。');return;}
+  const before=targets.map(f=>floorTotals(f).gross);
+  if(!confirm(`外壁（建物枠）は動かさずに、枠から ${Math.round(tol*1000)}mm 以内にある部屋の辺 ${pre.moved} 箇所（${pre.rooms} 部屋）を枠のラインへ寄せます。\n\n延床がその分だけ増減します。実行しますか？\n（↩ で元に戻せます）`))return;
   snapNow();
-  plan.forEach(p=>{p.f.footW=p.to.w;p.f.footH=p.to.h;});
+  targets.forEach(f=>{fitRoomsToFrame(f,tol,{});snapAllOpenings(f);});
+  const diff=targets.reduce((a,f,i)=>a+(floorTotals(f).gross-before[i]),0);
   pushHistory();render();
-  alert(`建物枠を合わせました（${plan.length}階）。\n建築面積：${f1(before)}㎡ → ${f1(builtArea())}㎡`);
+  alert(`${pre.moved} 箇所を外壁のラインに合わせました。\n延床の変化：${diff>=0?'+':''}${f1(diff)}㎡`);
 }
 /* 開口部だけを壁へ乗せ直す入口。 */
 function runSnapOpenings(allFloors){

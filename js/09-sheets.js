@@ -99,11 +99,13 @@ function buildDispSheet(){const box=$('dispSheetBody');box.innerHTML='';const st
    og.appendChild(btn('🚪 開口部を壁に合わせる',()=>runSnapOpenings(false)));
    og.appendChild(btn('🚪 全階の開口部',()=>runSnapOpenings(true)));
    box.appendChild(og);
+   window._frameTol=window._frameTol||300;
+   box.appendChild(fSelect('外壁からどこまで寄せるか',[['100','100mm まで'],['200','200mm まで'],['300','300mm まで（標準）'],['500','500mm まで']],String(window._frameTol),v=>{window._frameTol=+v;buildDispSheet();}));
    const fg=el('div','miniact');
-   fg.appendChild(btn('▢ 外壁を間取りに合わせる',()=>runFitFrame(false)));
-   fg.appendChild(btn('▢ 全階の外壁',()=>runFitFrame(true)));
+   const fb=btn('▢ 内壁を外壁に合わせる',()=>runFitRooms(false));fb.classList.add('solid');
+   fg.appendChild(fb);fg.appendChild(btn('▢ 全階',()=>runFitRooms(true)));
    box.appendChild(fg);
-   box.appendChild(el('div','hint','<b>外壁</b>は建物枠のこと。整列は「部屋を枠に寄せる」向きなので、その逆に<b>枠を実際の間取りの外周へ合わせたい</b>ときはこちら。建築面積・建ぺい率が変わるので、実行前に前後の寸法を出します。'));
+   box.appendChild(el('div','hint','<b>外壁（建物枠）は動かしません。</b>枠に面しているはずの部屋の辺が中途半端に離れている・はみ出しているとき、その辺だけを外壁のラインへ寄せます。整列の許容（数十mm）では届かない100〜500mmのズレが対象です。延床がその分だけ増減します。'));
    box.appendChild(chk('空間を置いたら隣の壁芯に自動でそろえる',view.roomSnap!==0,v=>{view.roomSnap=v?1:0;}));
    box.appendChild(el('div','hint','ドア・窓だけを最寄りの壁へ乗せ直します（壁沿いの位置と向きも合わせます）。整列しなくても単独で使えます。'));}
   box.appendChild(el('div','refnote','🧱 外壁＝<b style="color:#1F2E3C">濃紺</b> / 内壁＝<b style="color:#7C8D9C">グレー</b> で色分けしています。実寸だと 100mm壁は表示79%で約3pxしかないため、強調倍率で確認できます（<b>面積・寸法は常に実寸のまま</b>で、拡大しても数値は変わりません）。'));
